@@ -10,8 +10,6 @@ import (
 	"log"
 	"math/rand"
 	"net"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -37,8 +35,6 @@ type Payload struct {
 
 type device struct {
 	conn       *net.PacketConn
-	localAddr  string
-	localPort  int
 	remoteAddr string
 	timeout    int
 	mac        net.HardwareAddr
@@ -48,10 +44,9 @@ type device struct {
 	id         []byte
 }
 
-func newDevice(localAddr, remoteAddr string, mac net.HardwareAddr, timeout int) (device, error) {
+func newDevice(remoteAddr string, mac net.HardwareAddr, timeout int) (device, error) {
 	rand.Seed(time.Now().Unix())
 	d := device{
-		localAddr:  localAddr,
 		remoteAddr: remoteAddr,
 		timeout:    timeout,
 		mac:        mac,
@@ -101,25 +96,9 @@ func (d *device) setupConnection() error {
 		return nil
 	}
 
-	port := d.localPort
-	savePort := false
-	if port == 0 {
-		savePort = true
-	}
-	conn, err := net.ListenPacket("udp4", fmt.Sprintf("%v:%v", d.localAddr, port))
+	conn, err := net.ListenPacket("udp4", "")
 	if err != nil {
 		return err
-	}
-	if savePort {
-		local := conn.LocalAddr().String()
-		index := strings.LastIndex(local, ":")
-		if index > 0 {
-			p := local[:index]
-			port, err := strconv.Atoi(p)
-			if err == nil {
-				d.localPort = port
-			}
-		}
 	}
 
 	/*

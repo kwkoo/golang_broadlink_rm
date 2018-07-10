@@ -25,27 +25,18 @@ func (b *Broadlink) WithTimeout(t int) *Broadlink {
 
 // Discover will populate the Broadlink struct with a slice of Devices.
 func (b *Broadlink) Discover() error {
-	addresses, err := hostAddresses()
+	conn, err := net.ListenPacket("udp4", "")
 	if err != nil {
-		return fmt.Errorf("error retrieving list of host addresses: %v", err)
+		return fmt.Errorf("could not bind UDP listener: %v", err)
 	}
+	defer conn.Close()
 
-	for _, ip := range addresses {
-		conn, err := net.ListenPacket("udp4", ip.String()+":0")
-		if err != nil {
-			log.Printf("could not bind UDP listener to %v: %v", ip.String(), err)
-			continue
-		}
-		log.Printf("Listening to address %v", conn.LocalAddr().String())
-		err = sendBroadcastPacket(conn)
-		if err != nil {
-			log.Printf("Error sending broadcast packet: %v", err)
-			conn.Close()
-			continue
-		}
-		b.readPacket(conn)
-		conn.Close()
+	log.Printf("Listening to address %v", conn.LocalAddr().String())
+	err = sendBroadcastPacket(conn)
+	if err != nil {
+		return fmt.Errorf("error sending broadcast packet: %v", err)
 	}
+	b.readPacket(conn)
 
 	return nil
 }
@@ -72,30 +63,6 @@ func (b *Broadlink) Send(s string) error {
 	}
 	d := &(b.devices[0])
 	return d.sendString(s)
-}
-
-func hostAddresses() ([]net.IP, error) {
-	var filtered []net.IP
-	addresses, err := net.InterfaceAddrs()
-	if err != nil {
-		return filtered, fmt.Errorf("could not retrieve host addresses: %v", err)
-	}
-	for _, a := range addresses {
-		s := a.String()
-		if index := strings.Index(s, "/"); index != -1 {
-			s = s[:index]
-		}
-		ip := net.ParseIP(s)
-		if ip == nil {
-			continue
-		}
-		ip4 := ip.To4()
-		if ip4 == nil || ip4.IsLoopback() {
-			continue
-		}
-		filtered = append(filtered, ip4)
-	}
-	return filtered, nil
 }
 
 func (b *Broadlink) readPacket(conn net.PacketConn) {
@@ -128,11 +95,11 @@ func (b *Broadlink) readPacket(conn net.PacketConn) {
 
 		deviceType := (int)(buf[0x34]) | ((int)(buf[0x35]) << 8)
 
-		b.addDevice(conn.LocalAddr().String(), remote, mac, deviceType)
+		b.addDevice(remote, mac, deviceType)
 	}
 }
 
-func (b *Broadlink) addDevice(localAddr string, remote net.Addr, mac net.HardwareAddr, deviceType int) {
+func (b *Broadlink) addDevice(remote net.Addr, mac net.HardwareAddr, deviceType int) {
 	remoteAddr := remote.String()
 	if strings.Contains(remoteAddr, ":") {
 		remoteAddr = remoteAddr[:strings.Index(remoteAddr, ":")]
@@ -145,12 +112,8 @@ func (b *Broadlink) addDevice(localAddr string, remote net.Addr, mac net.Hardwar
 	if !supported {
 		log.Printf("Unsupported %v found at address %v, MAC %v", name, remoteAddr, mac.String())
 	}
-	if strings.Contains(localAddr, ":") {
-		index := strings.Index(localAddr, ":")
-		localAddr = localAddr[:index]
-	}
-	log.Printf("Found a supported %v at address %v, MAC %v from local address %v", name, remoteAddr, mac.String(), localAddr)
-	dev, err := newDevice(localAddr, remoteAddr, mac, b.timeout)
+	log.Printf("Found a supported %v at address %v, MAC %v", name, remoteAddr, mac.String())
+	dev, err := newDevice(remoteAddr, mac, b.timeout)
 	if err != nil {
 		log.Printf("Error creating new device: %v", err)
 	}
