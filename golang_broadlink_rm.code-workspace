@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"go.gopath": "${workspaceFolder}",
+		"terminal.integrated.env.osx": {
+			"GOPATH": "${workspaceFolder}",
+			"PATH": "/usr/local/go/bin:/opt/bin:/usr/bin:/usr/sbin:/sbin:/usr/local/bin:${workspaceFolder}/bin"
+		},
+		"terminal.integrated.env.linux": {
+			"GOPATH": "${workspaceFolder}",
+			"PATH": "${workspaceFolder}/bin:${env:HOME}/go/bin:${env:PATH}"
+		}
+	},
+}

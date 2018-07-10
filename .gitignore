@@ -1,0 +1,48 @@
+# Go-specific
+bin/**
+pkg/**
+
+# vim
+.*.swp
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+
+*.test
+
+# Debugger
+debug
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
+.glide/
+
+# Test Coverage
+coverage.html
+
+# Visual Studio Code
+src/golang.org/x/**
+src/github.com/acroca
+src/github.com/golang/lint
+src/github.com/karrick
+src/github.com/mdempsky
+src/github.com/pkg
+src/github.com/ramya-rao-a/go-outline
+src/github.com/rogpeppe
+src/github.com/sqs
+src/github.com/uudashr
+src/github.com/derekparker
