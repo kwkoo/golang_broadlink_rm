@@ -44,9 +44,9 @@ type device struct {
 	id         []byte
 }
 
-func newDevice(remoteAddr string, mac net.HardwareAddr, timeout int) (device, error) {
+func newDevice(remoteAddr string, mac net.HardwareAddr, timeout int) (*device, error) {
 	rand.Seed(time.Now().Unix())
-	d := device{
+	d := &device{
 		remoteAddr: remoteAddr,
 		timeout:    timeout,
 		mac:        mac,

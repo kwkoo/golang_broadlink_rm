@@ -5,41 +5,44 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/kwkoo/broadlinkrm"
 )
 
 var broadlink broadlinkrm.Broadlink
+var code string
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
-	broadlink.Send("260032017437110c1028110c110c100c100c110c100c110c110b110c100c110c1029100c110c100c110c100c110c100c110c100c1128110c100c110c100c110c100c110d0f0c1128110c1029102910291029100c100d1028110c1128102910291029100c11281100097c7437110c1029100c110c100c110c100c110c100c110c100c110c100c1128110c100c110c100c110c100c110c100c110c1029100c110b110c110c100c110c100c110b1128110c1029102910291029100c110c1029100c1128112811281128110c10291000097c7537100c1128110c100d100c100c110c100c110b110d100b110c100d1028110c100c110c100c110c100d100d0f0d100c1029100c110c100c110c100d100c100c110c1029100c1128112811281128110c100c1128110c1029102811291029100c102910000d05000000000000")
+	path := r.URL.Path
+	w.Header().Set("Content-type", "text/plain")
+	if strings.HasPrefix(path, "/learn") {
+		data, err := broadlink.Learn("")
+		if err != nil {
+			fmt.Fprintf(w, "Error: %v", err)
+			return
+		}
+		fmt.Fprintln(w, data)
+		code = data
+		return
+	}
+
+	if len(code) == 0 {
+		fmt.Fprintln(w, "Error: have not learned code")
+		return
+	}
+
+	broadlink.Send("", code)
+	fmt.Fprintln(w, "OK")
 }
 
 func main() {
-	broadlink = broadlinkrm.Broadlink{}
-	//b = b.WithTimeout(5)
+	broadlink = broadlinkrm.NewBroadlink()
 	err := broadlink.Discover()
 	if err != nil {
 		log.Fatal(err)
 	}
-	/*
-		err = b.Learn()
-		if err != nil {
-			log.Fatal(err)
-		}
-	*/
-	/*
-		for i := 0; i < 4; i++ {
-			time.Sleep(10 * time.Second)
-			log.Print("Sending code...")
-			err = b.Send("260032017437110c1028110c110c100c100c110c100c110c110b110c100c110c1029100c110c100c110c100c110c100c110c100c1128110c100c110c100c110c100c110d0f0c1128110c1029102910291029100c100d1028110c1128102910291029100c11281100097c7437110c1029100c110c100c110c100c110c100c110c100c110c100c1128110c100c110c100c110c100c110c100c110c1029100c110b110c110c100c110c100c110b1128110c1029102910291029100c110c1029100c1128112811281128110c10291000097c7537100c1128110c100d100c100c110c100c110b110d100b110c100d1028110c100c110c100c110c100d100d0f0d100c1029100c110c100c110c100d100c100c110c1029100c1128112811281128110c100c1128110c1029102811291029100c102910000d05000000000000")
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-	*/
+
 	port := 8080
 	flag.IntVar(&port, "port", 8080, "HTTP listener port")
 	flag.Parse()

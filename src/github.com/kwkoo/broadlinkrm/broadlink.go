@@ -1,6 +1,7 @@
 package broadlinkrm
 
 import (
+	"encoding/hex"
 	"fmt"
 	"log"
 	"net"
@@ -14,7 +15,17 @@ const defaultTimeout = 5 // seconds
 // Broadlink keeps a track of all the devices and sockets.
 type Broadlink struct {
 	timeout int // in seconds
-	devices []device
+	devices []*device
+	lookup  map[string]*device
+}
+
+// NewBroadlink creates and initializes a new Broadlink struct.
+func NewBroadlink() Broadlink {
+	b := Broadlink{
+		timeout: defaultTimeout,
+		lookup:  make(map[string]*device),
+	}
+	return b
 }
 
 // WithTimeout sets the timeout for all subsequent read operations.
@@ -41,27 +52,52 @@ func (b *Broadlink) Discover() error {
 	return nil
 }
 
-// Learn sends an enterLearning command to the first device.
-func (b *Broadlink) Learn() error {
-	if len(b.devices) == 0 {
-		return fmt.Errorf("no devices")
+func (b Broadlink) getDevice(id string) *device {
+	d, ok := b.lookup[id]
+	if !ok {
+		return nil
 	}
-	d := b.devices[0]
-	resp, err := d.learn()
-	if err != nil {
-		return fmt.Errorf("error while calling learn: %v", err)
-	}
-	log.Printf("Received response of payload type %v", resp.Type)
-	dumpPacket(resp.Data)
-	return nil
+	return d
 }
 
-// Send sends the argument to the first device.
-func (b *Broadlink) Send(s string) error {
+// Learn sends a learn command to the specified device. If id is an empty string it selects the first device.
+func (b *Broadlink) Learn(id string) (string, error) {
+	if len(b.devices) == 0 {
+		return "", fmt.Errorf("no devices")
+	}
+
+	var d *device
+	if len(id) == 0 {
+		d = b.devices[0]
+	} else {
+		d = b.getDevice(id)
+		if d == nil {
+			return "", fmt.Errorf("%v is not a known device", id)
+		}
+	}
+
+	resp, err := d.learn()
+	if err != nil {
+		return "", fmt.Errorf("error while calling learn: %v", err)
+	}
+
+	return hex.EncodeToString(resp.Data), nil
+}
+
+// Send sends data to the specified device. If id is an empty string it selects the first device.
+func (b *Broadlink) Send(id, s string) error {
 	if len(b.devices) == 0 {
 		return fmt.Errorf("no devices")
 	}
-	d := &(b.devices[0])
+	var d *device
+	if len(id) == 0 {
+		d = b.devices[0]
+	} else {
+		d = b.getDevice(id)
+		if d == nil {
+			return fmt.Errorf("%v is not a known device", id)
+		}
+	}
 	return d.sendString(s)
 }
 
@@ -112,12 +148,21 @@ func (b *Broadlink) addDevice(remote net.Addr, mac net.HardwareAddr, deviceType 
 	if !supported {
 		log.Printf("Unsupported %v found at address %v, MAC %v", name, remoteAddr, mac.String())
 	}
+
+	_, ipOK := b.lookup[remoteAddr]
+	_, macOK := b.lookup[mac.String()]
+	if ipOK || macOK {
+		log.Printf("We already know about %v, MAC %v - skipping", remoteAddr, mac.String())
+		return
+	}
 	log.Printf("Found a supported %v at address %v, MAC %v", name, remoteAddr, mac.String())
 	dev, err := newDevice(remoteAddr, mac, b.timeout)
 	if err != nil {
 		log.Printf("Error creating new device: %v", err)
 	}
 	b.devices = append(b.devices, dev)
+	b.lookup[remoteAddr] = dev
+	b.lookup[mac.String()] = dev
 }
 
 func sendBroadcastPacket(conn net.PacketConn) error {
