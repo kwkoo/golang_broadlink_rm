@@ -70,7 +70,7 @@ func (b *Broadlink) Send(s string) error {
 	if len(b.devices) == 0 {
 		return fmt.Errorf("no devices")
 	}
-	d := b.devices[0]
+	d := &(b.devices[0])
 	return d.sendString(s)
 }
 
@@ -132,21 +132,25 @@ func (b *Broadlink) readPacket(conn net.PacketConn) {
 	}
 }
 
-func (b *Broadlink) addDevice(localAddr string, remoteAddr net.Addr, mac net.HardwareAddr, deviceType int) {
+func (b *Broadlink) addDevice(localAddr string, remote net.Addr, mac net.HardwareAddr, deviceType int) {
+	remoteAddr := remote.String()
+	if strings.Contains(remoteAddr, ":") {
+		remoteAddr = remoteAddr[:strings.Index(remoteAddr, ":")]
+	}
 	known, name, supported := isKnownDevice(deviceType)
 	if !known {
-		log.Printf("Unknown device at address %v, MAC %v", remoteAddr.String(), mac.String())
+		log.Printf("Unknown device at address %v, MAC %v", remoteAddr, mac.String())
 		return
 	}
 	if !supported {
-		log.Printf("Unsupported %v found at address %v, MAC %v", name, remoteAddr.String(), mac.String())
+		log.Printf("Unsupported %v found at address %v, MAC %v", name, remoteAddr, mac.String())
 	}
 	if strings.Contains(localAddr, ":") {
 		index := strings.Index(localAddr, ":")
 		localAddr = localAddr[:index]
 	}
-	log.Printf("Found a supported %v at address %v, MAC %v from local address %v", name, remoteAddr.String(), mac.String(), localAddr)
-	dev, err := newDevice(localAddr, remoteAddr.String(), mac, b.timeout)
+	log.Printf("Found a supported %v at address %v, MAC %v from local address %v", name, remoteAddr, mac.String(), localAddr)
+	dev, err := newDevice(localAddr, remoteAddr, mac, b.timeout)
 	if err != nil {
 		log.Printf("Error creating new device: %v", err)
 	}

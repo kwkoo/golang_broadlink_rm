@@ -10,6 +10,8 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -36,6 +38,7 @@ type Payload struct {
 type device struct {
 	conn       *net.PacketConn
 	localAddr  string
+	localPort  int
 	remoteAddr string
 	timeout    int
 	mac        net.HardwareAddr
@@ -46,6 +49,7 @@ type device struct {
 }
 
 func newDevice(localAddr, remoteAddr string, mac net.HardwareAddr, timeout int) (device, error) {
+	rand.Seed(time.Now().Unix())
 	d := device{
 		localAddr:  localAddr,
 		remoteAddr: remoteAddr,
@@ -57,7 +61,7 @@ func newDevice(localAddr, remoteAddr string, mac net.HardwareAddr, timeout int) 
 		id:         []byte{0, 0, 0, 0},
 	}
 
-	// We don't care about the returned payload - readPacket() will automatically update the key.
+	// We don't care about the contents of the returned payload - readPacket() will automatically update the key.
 	_, err := d.serverRequest(authenticatePayload, d.timeout)
 	d.close()
 	if err != nil {
@@ -79,7 +83,7 @@ func (d *device) serverRequest(fn func() (byte, []byte), timeout int) (Payload, 
 	command, reqPayload := fn()
 	err = d.sendPacket(command, reqPayload)
 	if err != nil {
-		return respPayload, fmt.Errorf("could not packet: %v", err)
+		return respPayload, fmt.Errorf("could not send packet: %v", err)
 	}
 
 	return d.readPacket()
@@ -96,10 +100,34 @@ func (d *device) setupConnection() error {
 	if d.conn != nil {
 		return nil
 	}
-	conn, err := net.ListenPacket("udp4", d.localAddr+":0")
+
+	port := d.localPort
+	savePort := false
+	if port == 0 {
+		savePort = true
+	}
+	conn, err := net.ListenPacket("udp4", fmt.Sprintf("%v:%v", d.localAddr, port))
 	if err != nil {
 		return err
 	}
+	if savePort {
+		local := conn.LocalAddr().String()
+		index := strings.LastIndex(local, ":")
+		if index > 0 {
+			p := local[:index]
+			port, err := strconv.Atoi(p)
+			if err == nil {
+				d.localPort = port
+			}
+		}
+	}
+
+	/*
+		file, _ := conn.(*net.UDPConn).File()
+		fd := file.Fd()
+		syscall.SetsockoptInt((int)(fd), syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 0)
+	*/
+
 	d.conn = &conn
 	return nil
 }
@@ -190,16 +218,14 @@ func (d *device) sendPacket(command byte, payload []byte) error {
 	packet[0x20] = (byte)(checksum & 0xff)
 	packet[0x21] = (byte)(checksum >> 8)
 
-	destAddr, err := net.ResolveUDPAddr("udp", d.remoteAddr)
+	destAddr, err := net.ResolveUDPAddr("udp", d.remoteAddr+":80")
 	if err != nil {
 		return fmt.Errorf("could not resolve device address %v: %v", d.remoteAddr, err)
 	}
 
-	if d.conn == nil {
-		err := d.setupConnection()
-		if err != nil {
-			return err
-		}
+	err = d.setupConnection()
+	if err != nil {
+		return err
 	}
 	_, err = (*d.conn).WriteTo(packet, destAddr)
 	if err != nil {
