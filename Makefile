@@ -1,5 +1,5 @@
-SHORT_PACKAGE=broadlinkrm
-PACKAGE=github.com/kwkoo/$(SHORT_PACKAGE)
+SHORT_PACKAGE=rmproxy
+PACKAGE=github.com/kwkoo/broadlinkrm
 
 GOPATH:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 GOBIN=$(GOPATH)/bin
@@ -25,7 +25,7 @@ coverage:
 	open $(GOPATH)/$(COVERAGEHTML)
 
 run:
-	@GOPATH=$(GOPATH) go run $(GOPATH)/src/$(PACKAGE)/cmd/$(SHORT_PACKAGE)/main.go
+	@GOPATH=$(GOPATH) go run $(GOPATH)/src/$(PACKAGE)/cmd/$(SHORT_PACKAGE)/main.go -key 123 -rooms $(GOPATH)/json/rooms.json -commands $(GOPATH)/json/commands.json
 
 image: 
 	docker build --rm -t $(IMAGENAME):$(VERSION) $(GOPATH)

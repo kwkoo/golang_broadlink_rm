@@ -34,6 +34,11 @@ func (b *Broadlink) WithTimeout(t int) *Broadlink {
 	return b
 }
 
+// Count returns the number of devices that were discovered.
+func (b Broadlink) Count() int {
+	return len(b.devices)
+}
+
 // Discover will populate the Broadlink struct with a slice of Devices.
 func (b *Broadlink) Discover() error {
 	conn, err := net.ListenPacket("udp4", "")
@@ -53,7 +58,7 @@ func (b *Broadlink) Discover() error {
 }
 
 func (b Broadlink) getDevice(id string) *device {
-	d, ok := b.lookup[id]
+	d, ok := b.lookup[strings.ToLower(id)]
 	if !ok {
 		return nil
 	}
@@ -78,6 +83,7 @@ func (b *Broadlink) Learn(id string) (string, error) {
 
 	resp, err := d.learn()
 	if err != nil {
+		d.cancelLearn()
 		return "", fmt.Errorf("error while calling learn: %v", err)
 	}
 
@@ -149,8 +155,8 @@ func (b *Broadlink) addDevice(remote net.Addr, mac net.HardwareAddr, deviceType 
 		log.Printf("Unsupported %v found at address %v, MAC %v", name, remoteAddr, mac.String())
 	}
 
-	_, ipOK := b.lookup[remoteAddr]
-	_, macOK := b.lookup[mac.String()]
+	_, ipOK := b.lookup[strings.ToLower(remoteAddr)]
+	_, macOK := b.lookup[strings.ToLower(mac.String())]
 	if ipOK || macOK {
 		log.Printf("We already know about %v, MAC %v - skipping", remoteAddr, mac.String())
 		return
@@ -161,8 +167,8 @@ func (b *Broadlink) addDevice(remote net.Addr, mac net.HardwareAddr, deviceType 
 		log.Printf("Error creating new device: %v", err)
 	}
 	b.devices = append(b.devices, dev)
-	b.lookup[remoteAddr] = dev
-	b.lookup[mac.String()] = dev
+	b.lookup[strings.ToLower(remoteAddr)] = dev
+	b.lookup[strings.ToLower(mac.String())] = dev
 }
 
 func sendBroadcastPacket(conn net.PacketConn) error {

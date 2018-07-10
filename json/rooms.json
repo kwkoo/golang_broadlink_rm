@@ -1,0 +1,5 @@
+[
+    {"name":"livingroom","host":"78:0f:77:00:e3:de","groups":["ac-set1", "tv"]},
+    {"name":"bedroom","host":"D1:FB:80:28:C2:71","groups":["ac-set1", "light"]},
+    {"name":"bathroom","host":"DE:3B:F5:46:8B:0E","groups":["ac-set2"]}
+]

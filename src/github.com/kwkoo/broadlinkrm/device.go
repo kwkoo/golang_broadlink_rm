@@ -335,7 +335,8 @@ func (d *device) learn() (Payload, error) {
 		}
 		resp, err := d.checkData()
 		if err != nil {
-			return resp, fmt.Errorf("error received while calling checkData: %v", err)
+			continue // we continue because it's probably just timed out waiting for a response from check data
+			//return resp, fmt.Errorf("error received while calling checkData: %v", err)
 		}
 		if resp.Type != Unknown {
 			return resp, nil
