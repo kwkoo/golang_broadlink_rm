@@ -104,7 +104,7 @@ func initalizeBroadlink(deviceConfigPath string, skipDiscovery bool) {
 			log.Fatalf("Error while processing device configurations JSON: %v", err)
 		}
 		for _, d := range dc {
-			err := broadlink.AddManualDevice(d.IP, d.Mac, d.Key, d.ID)
+			err := broadlink.AddManualDevice(d.IP, d.Mac, d.Key, d.ID, d.DeviceType)
 			if err != nil {
 				log.Fatalf("Error adding manual device configuration: %v", err)
 			}
@@ -135,6 +135,16 @@ func setupWebServer(port int) {
 func handler(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	log.Printf("Received request: %v", path)
+	if strings.HasPrefix(path, "/remote/") {
+		components, authorized := processURI("/remote/", path)
+		if !authorized {
+			unauthorized(w, r)
+			return
+		}
+		handleRemote(w, r, components)
+		return
+	}
+
 	w.Header().Set("Content-type", "text/plain")
 	if strings.HasPrefix(path, "/learn/") {
 		components, authorized := processURI("/learn/", path)
@@ -208,6 +218,25 @@ func handleExecute(w http.ResponseWriter, r *http.Request, room, command string)
 
 	fmt.Fprintln(w, "OK")
 	return
+}
+
+func handleRemote(w http.ResponseWriter, r *http.Request, components []string) {
+	if len(components) < 1 {
+		notfound(w, r, "Not found")
+		return
+	}
+	path := components[0]
+	if path == "" || path == "index.html" {
+		w.Header().Set("Content-type", "text/html")
+		fmt.Fprint(w, rmproxy.IndexHTML())
+		return
+	}
+	if path == "icon.png" {
+		w.Header().Set("Content-type", "image/png")
+		w.Write(rmproxy.Icon())
+		return
+	}
+	notfound(w, r, "Not found")
 }
 
 func unauthorized(w http.ResponseWriter, r *http.Request) {

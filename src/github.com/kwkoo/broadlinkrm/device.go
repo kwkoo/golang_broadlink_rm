@@ -14,21 +14,23 @@ import (
 
 const learnTimeout = 20 // seconds
 
-// PayloadType denotes the type of payload.
-type PayloadType int
+// ResponseType denotes the type of payload.
+type ResponseType int
 
 // Enumerations of PayloadType.
 const (
-	Unknown PayloadType = iota
+	Unknown ResponseType = iota
+	AuthOK
 	Temperature
+	CommandOK
 	RawData
 	RawRFData
 	RawRFData2
 )
 
-// Payload represents a decrypted payload from the device.
-type Payload struct {
-	Type PayloadType
+// Response represents a decrypted payload from the device.
+type Response struct {
+	Type ResponseType
 	Data []byte
 }
 
@@ -36,6 +38,7 @@ type device struct {
 	conn       *net.PacketConn
 	remoteAddr string
 	timeout    int
+	deviceType int
 	mac        net.HardwareAddr
 	count      int
 	key        []byte
@@ -43,11 +46,12 @@ type device struct {
 	id         []byte
 }
 
-func newDevice(remoteAddr string, mac net.HardwareAddr, timeout int) (*device, error) {
+func newDevice(remoteAddr string, mac net.HardwareAddr, timeout, deviceType int) (*device, error) {
 	rand.Seed(time.Now().Unix())
 	d := &device{
 		remoteAddr: remoteAddr,
 		timeout:    timeout,
+		deviceType: deviceType,
 		mac:        mac,
 		count:      rand.Intn(0xffff),
 		key:        []byte{0x09, 0x76, 0x28, 0x34, 0x3f, 0xe9, 0x9e, 0x23, 0x76, 0x5c, 0x15, 0x13, 0xac, 0xcf, 0x8b, 0x02},
@@ -55,12 +59,13 @@ func newDevice(remoteAddr string, mac net.HardwareAddr, timeout int) (*device, e
 		id:         []byte{0, 0, 0, 0},
 	}
 
-	// We don't care about the contents of the returned payload - readPacket()
-	// will automatically update the key.
-	_, err := d.serverRequest(authenticatePayload, d.timeout)
+	response, err := d.serverRequest(authenticatePayload, d.timeout)
 	d.close()
 	if err != nil {
 		return d, fmt.Errorf("error making server request: %v", err)
+	}
+	if response.Type != AuthOK {
+		return d, fmt.Errorf("did not get an affirmative response to the authenticaton request - expected %v but got %v instead", AuthOK, response.Type)
 	}
 
 	return d, nil
@@ -69,7 +74,11 @@ func newDevice(remoteAddr string, mac net.HardwareAddr, timeout int) (*device, e
 // newManualDevice lets you create a device by specifying a key and id,
 // skipping the authentication phase. All fields aside from the mac address are
 // mandatory.
-func newManualDevice(ip, mac, key, id string, timeout int) (*device, error) {
+func newManualDevice(ip, mac, key, id string, timeout, deviceType int) (*device, error) {
+	_, _, supported, _, _, _ := isKnownDevice(deviceType)
+	if !supported {
+		return nil, fmt.Errorf("device type 0x%04x is not supported", deviceType)
+	}
 	parsedip := net.ParseIP(ip)
 	if parsedip.String() == "<nil>" {
 		return nil, fmt.Errorf("%v is not a valid IP address", ip)
@@ -110,8 +119,8 @@ func newManualDevice(ip, mac, key, id string, timeout int) (*device, error) {
 	return d, nil
 }
 
-func (d *device) serverRequest(fn func() (byte, []byte), timeout int) (Payload, error) {
-	respPayload := Payload{}
+func (d *device) serverRequest(fn func() (byte, []byte), timeout int) (Response, error) {
+	respPayload := Response{}
 
 	err := d.setupConnection()
 	if err != nil {
@@ -257,9 +266,9 @@ func (d *device) sendPacket(command byte, payload []byte) error {
 	return nil
 }
 
-func (d *device) readPacket() (Payload, error) {
+func (d *device) readPacket() (Response, error) {
 	var buf [1024]byte
-	processedPayload := Payload{Type: Unknown}
+	processedPayload := Response{Type: Unknown}
 	if d.conn == nil {
 		return processedPayload, errors.New("a connection to the device does not exist")
 	}
@@ -275,12 +284,6 @@ func (d *device) readPacket() (Payload, error) {
 	encryptedPayload := make([]byte, plen-0x38, plen-0x38)
 	copy(encryptedPayload, buf[0x38:plen])
 
-	errorCode := (int)(buf[0x22]) | ((int)(buf[0x23]) << 8)
-	if errorCode != 0 {
-		// It's not a real error!
-		return processedPayload, nil
-	}
-
 	block, err := aes.NewCipher(d.key)
 	if err != nil {
 		return processedPayload, fmt.Errorf("error creating new decryption cipher: %v", err)
@@ -294,28 +297,39 @@ func (d *device) readPacket() (Payload, error) {
 		copy(d.key, payload[0x04:0x14])
 		copy(d.id, payload[:0x04])
 		log.Printf("Device ready - updating to a new key %v and new id %v", hex.EncodeToString(d.key), hex.EncodeToString(d.id))
+		processedPayload.Type = AuthOK
 		return processedPayload, nil
 	}
 
 	if command == 0xee || command == 0xef {
 		param := payload[0]
+		errorCode := (int)(buf[0x22]) | ((int)(buf[0x23]) << 8)
+		//log.Printf("*** command=0x%02x param=0x%02x errorCode=0x%04v", command, param, errorCode)
+		if errorCode != 0 {
+			// It's not a real error!
+			return processedPayload, nil
+		}
 		switch param {
 		case 1:
 			processedPayload.Type = Temperature
 			processedPayload.Data = []byte{(payload[0x4]*10 + payload[0x5]) / 10}
+		case 2:
+			processedPayload.Type = CommandOK
 		case 4:
 			processedPayload.Type = RawData
 			processedPayload.Data = make([]byte, len(payload)-4, len(payload)-4)
 			copy(processedPayload.Data, payload[4:])
 		case 26:
+			processedPayload.Data = make([]byte, len(payload)-4, len(payload)-4)
+			copy(processedPayload.Data, payload[4:])
 			if payload[0x4] == 1 {
 				processedPayload.Type = RawRFData
-				processedPayload.Data = []byte{payload[0x4]}
 			}
 		case 27:
+			processedPayload.Data = make([]byte, len(payload)-4, len(payload)-4)
+			copy(processedPayload.Data, payload[4:])
 			if payload[0x4] == 1 {
 				processedPayload.Type = RawRFData2
-				processedPayload.Data = []byte{payload[0x4]}
 			}
 		}
 		return processedPayload, nil
@@ -325,17 +339,13 @@ func (d *device) readPacket() (Payload, error) {
 	return processedPayload, fmt.Errorf("unhandled command - %v", command)
 }
 
-func (d *device) checkData() (Payload, error) {
+func (d *device) checkData() (Response, error) {
 	resp, err := d.serverRequest(checkDataPayload, d.timeout)
 	if err != nil {
 		return resp, fmt.Errorf("error making CheckData request: %v", err)
 	}
 
 	return resp, nil
-}
-
-func checkDataPayload() (byte, []byte) {
-	return 0x6a, basicRequestPayload(4)
 }
 
 func (d *device) sendString(s string) error {
@@ -362,37 +372,40 @@ func (d *device) sendData(data []byte) error {
 		return fmt.Errorf("could not send packet: %v", err)
 	}
 
+	response, err := d.readPacket()
+	if err != nil {
+		return fmt.Errorf("error reading reseponse: %v", err)
+	}
+	if response.Type != CommandOK {
+		return fmt.Errorf("did not get the expected response type from the device - expected %v but got %v instead", CommandOK, response.Type)
+	}
+	log.Print("Send successful")
 	return nil
 }
 
-func (d *device) learn() (Payload, error) {
+func (d *device) learn() (Response, error) {
 	deadline := time.Now().Add(learnTimeout * time.Second)
 	defer d.close()
 	_, err := d.serverRequest(enterLearningPayload, d.timeout)
 	if err != nil {
-		return Payload{}, fmt.Errorf("error making learning request: %v", err)
+		return Response{}, fmt.Errorf("error making learning request: %v", err)
 	}
 
 	for {
 		if time.Now().After(deadline) {
-			return Payload{}, errors.New("learning timeout")
+			return Response{}, errors.New("learning timeout")
 		}
 		resp, err := d.checkData()
 		if err != nil {
 			continue // we continue because it's probably just timed out waiting for a response from check data
-			//return resp, fmt.Errorf("error received while calling checkData: %v", err)
 		}
-		if resp.Type != Unknown {
+		if resp.Type == RawData {
 			return resp, nil
 		}
 	}
 }
 
-func enterLearningPayload() (byte, []byte) {
-	return 0x6a, basicRequestPayload(3)
-}
-
-func (d *device) checkTemperature() (Payload, error) {
+func (d *device) checkTemperature() (Response, error) {
 	defer d.close()
 	resp, err := d.serverRequest(checkTemperaturePayload, d.timeout)
 	if err != nil {
@@ -401,18 +414,38 @@ func (d *device) checkTemperature() (Payload, error) {
 	return resp, nil
 }
 
-func checkTemperaturePayload() (byte, []byte) {
-	return 0x6a, basicRequestPayload(1)
-}
-
 func (d *device) cancelLearn() {
 	command, payload := cancelLearnPayload()
 	d.sendPacket(command, payload)
 	d.close()
 }
 
+func checkDataPayload() (byte, []byte) {
+	return 0x6a, basicRequestPayload(4)
+}
+
+func enterLearningPayload() (byte, []byte) {
+	return 0x6a, basicRequestPayload(3)
+}
+
+func checkTemperaturePayload() (byte, []byte) {
+	return 0x6a, basicRequestPayload(1)
+}
+
 func cancelLearnPayload() (byte, []byte) {
 	return 0x6a, basicRequestPayload(0x1e)
+}
+
+func enterRFSweepPayload() (byte, []byte) {
+	return 0x6a, basicRequestPayload(0x19)
+}
+
+func checkRFData() (byte, []byte) {
+	return 0x6a, basicRequestPayload(0x1a)
+}
+
+func checkRFData2() (byte, []byte) {
+	return 0x6a, basicRequestPayload(0x1b)
 }
 
 func basicRequestPayload(command byte) []byte {

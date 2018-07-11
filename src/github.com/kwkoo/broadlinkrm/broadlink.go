@@ -142,8 +142,8 @@ func (b *Broadlink) readPacket(conn net.PacketConn) {
 }
 
 // AddManualDevice adds a device manually - bypassing the authentication phase.
-func (b *Broadlink) AddManualDevice(ip, mac, key, id string) error {
-	d, err := newManualDevice(ip, mac, key, id, b.timeout)
+func (b *Broadlink) AddManualDevice(ip, mac, key, id string, deviceType int) error {
+	d, err := newManualDevice(ip, mac, key, id, b.timeout, deviceType)
 	if err != nil {
 		return err
 	}
@@ -169,13 +169,13 @@ func (b *Broadlink) addDevice(remote net.Addr, mac net.HardwareAddr, deviceType 
 	if strings.Contains(remoteAddr, ":") {
 		remoteAddr = remoteAddr[:strings.Index(remoteAddr, ":")]
 	}
-	known, name, supported := isKnownDevice(deviceType)
+	known, name, supported, _, _, _ := isKnownDevice(deviceType)
 	if !known {
-		log.Printf("Unknown device at address %v, MAC %v", remoteAddr, mac.String())
+		log.Printf("Unknown device (0x%04x) at address %v, MAC %v", deviceType, remoteAddr, mac.String())
 		return
 	}
 	if !supported {
-		log.Printf("Unsupported %v found at address %v, MAC %v", name, remoteAddr, mac.String())
+		log.Printf("Unsupported %v (0x%04x) found at address %v, MAC %v", name, deviceType, remoteAddr, mac.String())
 	}
 
 	_, ipOK := b.lookup[strings.ToLower(remoteAddr)]
@@ -184,8 +184,8 @@ func (b *Broadlink) addDevice(remote net.Addr, mac net.HardwareAddr, deviceType 
 		log.Printf("We already know about %v, MAC %v - skipping", remoteAddr, mac.String())
 		return
 	}
-	log.Printf("Found a supported %v at address %v, MAC %v", name, remoteAddr, mac.String())
-	dev, err := newDevice(remoteAddr, mac, b.timeout)
+	log.Printf("Found a supported %v, device type %d (0x%04x) at address %v, MAC %v", name, deviceType, deviceType, remoteAddr, mac.String())
+	dev, err := newDevice(remoteAddr, mac, b.timeout, deviceType)
 	if err != nil {
 		log.Printf("Error creating new device: %v", err)
 	}

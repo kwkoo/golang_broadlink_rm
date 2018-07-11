@@ -9,10 +9,11 @@ import (
 // DeviceConfig represents a manually configured device (versus a device that
 // is discovered).
 type DeviceConfig struct {
-	IP  string `json:"ip"`
-	Mac string `json:"mac"`
-	Key string `json:"key"`
-	ID  string `json:"id"`
+	IP         string `json:"ip"`
+	Mac        string `json:"mac"`
+	Key        string `json:"key"`
+	ID         string `json:"id"`
+	DeviceType int    `json:"type"`
 }
 
 // IngestDeviceConfig reads a JSON stream and returns a slice of DeviceConfig

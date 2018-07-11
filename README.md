@@ -27,3 +27,17 @@ If it finds a supported Broadlink device, it will send an authentication packet 
 If you wish to skip this discovery process, you can specify the device's attributes in a JSON file and launch `rmproxy` with the `-deviceconfig` command line option or the `DEVICECONFIG` environment variable. You can also include a `-skipdiscovery` command line option or a `SKIPDISCOVERY` environment variable.
 
 A sample device config JSON file can be found at `json/devices_sample.json`.
+
+## Web Remote Control
+
+A simple web remote interface is available at `http://localhost:8080/remote/KEY/`.
+
+## Credits
+
+The remote control icons were downloaded from <https://icons8.com/> and <https://material.io/tools/icons/>.
+
+A large part of the code was ported over from <https://github.com/TheAslera/broadlink-rm-http> and <https://github.com/lprhodes/broadlinkjs-rm>.
+
+The [blog post by Ipsum Domus](https://blog.ipsumdomus.com/broadlink-smart-home-devices-complete-protocol-hack-bc0b4b397af1) really helped in showing how the protocol works.
+
+Inspiration for the remote control web layout was taken from <https://www.youtube.com/watch?v=X1SNkEZW5h8>.
