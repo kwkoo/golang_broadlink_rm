@@ -20,6 +20,12 @@ var (
 )
 
 func main() {
+	skipDiscovery := false
+	if len(os.Getenv("SKIPDISCOVERY")) > 0 {
+		skipDiscovery = true
+	} else {
+		flag.BoolVar(&skipDiscovery, "skipdiscovery", false, "Skip the device discovery process")
+	}
 	key = os.Getenv("KEY")
 	if len(key) == 0 {
 		flag.StringVar(&key, "key", "", "A key that's used to authenticate incoming requests. This is a required part of all incoming URLs.")
@@ -36,13 +42,17 @@ func main() {
 	if len(commandsPath) == 0 {
 		flag.StringVar(&commandsPath, "commands", "", "Path to the JSON file listing all remote commands.")
 	}
+	deviceConfigPath := os.Getenv("DEVICECONFIG")
+	if len(deviceConfigPath) == 0 {
+		flag.StringVar(&deviceConfigPath, "deviceconfig", "", "Path to the JSON file specifying device configurations.")
+	}
 	flag.Parse()
 	mandatoryParameter("key", key)
 	mandatoryParameter("rooms", roomsPath)
 	mandatoryParameter("commands", commandsPath)
 
 	initializeRooms(roomsPath, commandsPath)
-	initalizeBroadlink()
+	initalizeBroadlink(deviceConfigPath, skipDiscovery)
 	setupWebServer(port)
 }
 
@@ -80,12 +90,35 @@ func initializeRooms(roomsPath, commandsPath string) {
 	log.Printf("Processed %d rooms", rooms.Count())
 }
 
-func initalizeBroadlink() {
+func initalizeBroadlink(deviceConfigPath string, skipDiscovery bool) {
 	broadlink = broadlinkrm.NewBroadlink()
-	err := broadlink.Discover()
-	if err != nil {
-		log.Fatal(err)
+
+	if len(deviceConfigPath) > 0 {
+		deviceConfigFile, err := os.Open(deviceConfigPath)
+		if err != nil {
+			log.Fatalf("Could not open device configurations JSON file %v: %v", deviceConfigPath, err)
+		}
+		dc, err := rmproxy.IngestDeviceConfig(deviceConfigFile)
+		deviceConfigFile.Close()
+		if err != nil {
+			log.Fatalf("Error while processing device configurations JSON: %v", err)
+		}
+		for _, d := range dc {
+			err := broadlink.AddManualDevice(d.IP, d.Mac, d.Key, d.ID)
+			if err != nil {
+				log.Fatalf("Error adding manual device configuration: %v", err)
+			}
+		}
+		log.Printf("Added %v devices manually", broadlink.Count())
 	}
+
+	if !skipDiscovery {
+		err := broadlink.Discover()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	count := broadlink.Count()
 	if count == 0 {
 		log.Fatal("Did not discover any devices")

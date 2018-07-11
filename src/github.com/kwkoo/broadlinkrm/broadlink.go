@@ -141,6 +141,29 @@ func (b *Broadlink) readPacket(conn net.PacketConn) {
 	}
 }
 
+// AddManualDevice adds a device manually - bypassing the authentication phase.
+func (b *Broadlink) AddManualDevice(ip, mac, key, id string) error {
+	d, err := newManualDevice(ip, mac, key, id, b.timeout)
+	if err != nil {
+		return err
+	}
+	if b.getDevice(d.remoteAddr) != nil {
+		log.Printf("A device with IP %v already exists - skipping manual add", d.remoteAddr)
+		return nil
+	}
+	hw := d.mac.String()
+	if (len(hw) > 0) && (b.getDevice(hw) != nil) {
+		log.Printf("A device with MAC %v already exists - skipping manual add", hw)
+	}
+	b.devices = append(b.devices, d)
+	b.lookup[d.remoteAddr] = d
+	if len(hw) > 0 {
+		b.lookup[strings.ToLower(hw)] = d
+	}
+
+	return nil
+}
+
 func (b *Broadlink) addDevice(remote net.Addr, mac net.HardwareAddr, deviceType int) {
 	remoteAddr := remote.String()
 	if strings.Contains(remoteAddr, ":") {

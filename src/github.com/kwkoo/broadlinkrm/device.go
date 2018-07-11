@@ -1,7 +1,6 @@
 package broadlinkrm
 
 import (
-	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/hex"
@@ -56,11 +55,56 @@ func newDevice(remoteAddr string, mac net.HardwareAddr, timeout int) (*device, e
 		id:         []byte{0, 0, 0, 0},
 	}
 
-	// We don't care about the contents of the returned payload - readPacket() will automatically update the key.
+	// We don't care about the contents of the returned payload - readPacket()
+	// will automatically update the key.
 	_, err := d.serverRequest(authenticatePayload, d.timeout)
 	d.close()
 	if err != nil {
 		return d, fmt.Errorf("error making server request: %v", err)
+	}
+
+	return d, nil
+}
+
+// newManualDevice lets you create a device by specifying a key and id,
+// skipping the authentication phase. All fields aside from the mac address are
+// mandatory.
+func newManualDevice(ip, mac, key, id string, timeout int) (*device, error) {
+	parsedip := net.ParseIP(ip)
+	if parsedip.String() == "<nil>" {
+		return nil, fmt.Errorf("%v is not a valid IP address", ip)
+	}
+	skipmac := false
+	parsedmac, err := net.ParseMAC(mac)
+	if err != nil {
+		skipmac = true
+	}
+	keyhex, err := hex.DecodeString(key)
+	if err != nil {
+		return nil, fmt.Errorf("key %v is an invalid hex string: %v", key, err)
+	}
+	if len(keyhex) != 16 {
+		return nil, fmt.Errorf("key has length of %v bytes - it should have a length of 16 bytes", len(keyhex))
+	}
+	idhex, err := hex.DecodeString(id)
+	if err != nil {
+		return nil, fmt.Errorf("id %v is an invalid hex string: %v", id, err)
+	}
+	if len(idhex) != 4 {
+		return nil, fmt.Errorf("id has length of %v bytes - it should have a length of 4 bytes", len(idhex))
+	}
+
+	rand.Seed(time.Now().Unix())
+	d := &device{
+		remoteAddr: parsedip.String(),
+		timeout:    timeout,
+		count:      rand.Intn(0xffff),
+		key:        keyhex,
+		iv:         []byte{0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58},
+		id:         idhex,
+	}
+	if !skipmac {
+		d.mac = parsedmac
 	}
 
 	return d, nil
@@ -249,7 +293,7 @@ func (d *device) readPacket() (Payload, error) {
 	if command == 0xe9 {
 		copy(d.key, payload[0x04:0x14])
 		copy(d.id, payload[:0x04])
-		log.Printf("Device ready - updating to a new key %v and new id %v", d.key, d.id)
+		log.Printf("Device ready - updating to a new key %v and new id %v", hex.EncodeToString(d.key), hex.EncodeToString(d.id))
 		return processedPayload, nil
 	}
 
@@ -375,12 +419,4 @@ func basicRequestPayload(command byte) []byte {
 	payload := make([]byte, 16, 16)
 	payload[0] = command
 	return payload
-}
-
-func dumpPacket(p []byte) {
-	var buf bytes.Buffer
-	for _, v := range p {
-		buf.WriteString(fmt.Sprintf("%02x", v))
-	}
-	log.Print(buf.String())
 }
