@@ -144,6 +144,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		}
 		if len(components) != 1 {
 			notfound(w, r, "Invalid command")
+			return
 		}
 		handleLearn(w, r, components[0])
 		return
@@ -156,6 +157,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		}
 		if len(components) != 2 {
 			notfound(w, r, "Invalid command")
+			return
 		}
 		handleExecute(w, r, components[0], components[1])
 		return
