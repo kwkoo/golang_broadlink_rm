@@ -31,7 +31,8 @@ coverage:
 run:
 	@GOPATH=$(GOPATH) go run \
 		$(GOPATH)/src/$(PACKAGE)/cmd/$(SHORT_PACKAGE)/main.go \
-		-key 123 -rooms $(GOPATH)/json/rooms.json \
+		-key 123 \
+		-rooms $(GOPATH)/json/rooms.json \
 		-commands $(GOPATH)/json/commands.json \
 		-deviceconfig $(GOPATH)/json/devices.json \
 #		-skipdiscovery
@@ -40,6 +41,10 @@ image:
 	docker build --rm -t $(IMAGENAME):$(VERSION) $(GOPATH)
 
 runcontainer:
-	docker run --rm -it --name $(SHORT_PACKAGE) \
+	docker run \
+		--rm \
+		-it \
+		--env-file $(GOPATH)/env.list \
+		--name $(SHORT_PACKAGE) \
 		-p 8080:8080 \
-		$(IMAGENAME):$(VERSION)
+		$(IMAGENAME):$(VERSION) \
