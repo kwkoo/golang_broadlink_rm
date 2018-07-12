@@ -32,9 +32,9 @@ run:
 	@GOPATH=$(GOPATH) go run \
 		$(GOPATH)/src/$(PACKAGE)/cmd/$(SHORT_PACKAGE)/main.go \
 		-key 123 \
-		-rooms $(GOPATH)/json/rooms.json \
-		-commands $(GOPATH)/json/commands.json \
-		-deviceconfig $(GOPATH)/json/devices.json \
+		-rooms $(GOPATH)/../localremote/json/rooms.json \
+		-commands $(GOPATH)/../localremote/json/commands.json \
+		-deviceconfig $(GOPATH)/../localremote/json/devices.json \
 #		-skipdiscovery
 
 image: 
