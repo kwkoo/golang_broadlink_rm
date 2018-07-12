@@ -75,10 +75,6 @@ func newDevice(remoteAddr string, mac net.HardwareAddr, timeout, deviceType int)
 // skipping the authentication phase. All fields aside from the mac address are
 // mandatory.
 func newManualDevice(ip, mac, key, id string, timeout, deviceType int) (*device, error) {
-	_, _, supported, _, _, _ := isKnownDevice(deviceType)
-	if !supported {
-		return nil, fmt.Errorf("device type 0x%04x is not supported", deviceType)
-	}
 	parsedip := net.ParseIP(ip)
 	if parsedip.String() == "<nil>" {
 		return nil, fmt.Errorf("%v is not a valid IP address", ip)

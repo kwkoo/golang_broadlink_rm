@@ -57,14 +57,6 @@ func (b *Broadlink) Discover() error {
 	return nil
 }
 
-func (b Broadlink) getDevice(id string) *device {
-	d, ok := b.lookup[strings.ToLower(id)]
-	if !ok {
-		return nil
-	}
-	return d
-}
-
 // Learn sends a learn command to the specified device. If id is an empty string it selects the first device.
 func (b *Broadlink) Learn(id string) (string, error) {
 	if len(b.devices) == 0 {
@@ -79,6 +71,11 @@ func (b *Broadlink) Learn(id string) (string, error) {
 		if d == nil {
 			return "", fmt.Errorf("%v is not a known device", id)
 		}
+	}
+
+	devChar := isKnownDevice(d.deviceType)
+	if !devChar.ir {
+		return "", fmt.Errorf("device %v is of device type %v (0x%04x) and is not capable of IR", d.mac.String(), d.deviceType, d.deviceType)
 	}
 
 	resp, err := d.learn()
@@ -104,7 +101,47 @@ func (b *Broadlink) Send(id, s string) error {
 			return fmt.Errorf("%v is not a known device", id)
 		}
 	}
+
+	devChar := isKnownDevice(d.deviceType)
+	if !devChar.ir && !devChar.rf {
+		return fmt.Errorf("device %v is of device type %v (0x%04x) and is not capable of sending data", d.mac.String(), d.deviceType, d.deviceType)
+	}
 	return d.sendString(s)
+}
+
+// AddManualDevice adds a device manually - bypassing the authentication phase.
+func (b *Broadlink) AddManualDevice(ip, mac, key, id string, deviceType int) error {
+	devChar := isKnownDevice(deviceType)
+	if !devChar.supported {
+		return fmt.Errorf("device type %v (0x%04x) is not supported", deviceType, deviceType)
+	}
+	d, err := newManualDevice(ip, mac, key, id, b.timeout, deviceType)
+	if err != nil {
+		return err
+	}
+	if b.getDevice(d.remoteAddr) != nil {
+		log.Printf("A device with IP %v already exists - skipping manual add", d.remoteAddr)
+		return nil
+	}
+	hw := d.mac.String()
+	if (len(hw) > 0) && (b.getDevice(hw) != nil) {
+		log.Printf("A device with MAC %v already exists - skipping manual add", hw)
+	}
+	b.devices = append(b.devices, d)
+	b.lookup[d.remoteAddr] = d
+	if len(hw) > 0 {
+		b.lookup[strings.ToLower(hw)] = d
+	}
+
+	return nil
+}
+
+func (b Broadlink) getDevice(id string) *device {
+	d, ok := b.lookup[strings.ToLower(id)]
+	if !ok {
+		return nil
+	}
+	return d
 }
 
 func (b *Broadlink) readPacket(conn net.PacketConn) {
@@ -141,41 +178,18 @@ func (b *Broadlink) readPacket(conn net.PacketConn) {
 	}
 }
 
-// AddManualDevice adds a device manually - bypassing the authentication phase.
-func (b *Broadlink) AddManualDevice(ip, mac, key, id string, deviceType int) error {
-	d, err := newManualDevice(ip, mac, key, id, b.timeout, deviceType)
-	if err != nil {
-		return err
-	}
-	if b.getDevice(d.remoteAddr) != nil {
-		log.Printf("A device with IP %v already exists - skipping manual add", d.remoteAddr)
-		return nil
-	}
-	hw := d.mac.String()
-	if (len(hw) > 0) && (b.getDevice(hw) != nil) {
-		log.Printf("A device with MAC %v already exists - skipping manual add", hw)
-	}
-	b.devices = append(b.devices, d)
-	b.lookup[d.remoteAddr] = d
-	if len(hw) > 0 {
-		b.lookup[strings.ToLower(hw)] = d
-	}
-
-	return nil
-}
-
 func (b *Broadlink) addDevice(remote net.Addr, mac net.HardwareAddr, deviceType int) {
 	remoteAddr := remote.String()
 	if strings.Contains(remoteAddr, ":") {
 		remoteAddr = remoteAddr[:strings.Index(remoteAddr, ":")]
 	}
-	known, name, supported, _, _, _ := isKnownDevice(deviceType)
-	if !known {
+	devChar := isKnownDevice(deviceType)
+	if !devChar.known {
 		log.Printf("Unknown device (0x%04x) at address %v, MAC %v", deviceType, remoteAddr, mac.String())
 		return
 	}
-	if !supported {
-		log.Printf("Unsupported %v (0x%04x) found at address %v, MAC %v", name, deviceType, remoteAddr, mac.String())
+	if !devChar.supported {
+		log.Printf("Unsupported %v (0x%04x) found at address %v, MAC %v", devChar.name, deviceType, remoteAddr, mac.String())
 	}
 
 	_, ipOK := b.lookup[strings.ToLower(remoteAddr)]
@@ -184,7 +198,7 @@ func (b *Broadlink) addDevice(remote net.Addr, mac net.HardwareAddr, deviceType 
 		log.Printf("We already know about %v, MAC %v - skipping", remoteAddr, mac.String())
 		return
 	}
-	log.Printf("Found a supported %v, device type %d (0x%04x) at address %v, MAC %v", name, deviceType, deviceType, remoteAddr, mac.String())
+	log.Printf("Found a supported %v, device type %d (0x%04x) at address %v, MAC %v", devChar.name, deviceType, deviceType, remoteAddr, mac.String())
 	dev, err := newDevice(remoteAddr, mac, b.timeout, deviceType)
 	if err != nil {
 		log.Printf("Error creating new device: %v", err)

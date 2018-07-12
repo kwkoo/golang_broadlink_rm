@@ -1,5 +1,14 @@
 package broadlinkrm
 
+type deviceCharacteristics struct {
+	known     bool
+	name      string
+	supported bool
+	ir        bool
+	rf        bool
+	power     bool
+}
+
 type knownDevice struct {
 	deviceType int
 	name       string
@@ -39,11 +48,18 @@ var knownDevices = []knownDevice{
 	knownDevice{deviceType: 0x4e4d, name: "Dooya DT360E (DOOYA_CURTAIN_V2) or Hysen Heating Controller", supported: false},
 }
 
-func isKnownDevice(dt int) (bool, string, bool, bool, bool, bool) {
+func isKnownDevice(dt int) deviceCharacteristics {
+	resp := deviceCharacteristics{}
 	for _, d := range knownDevices {
 		if dt == d.deviceType {
-			return true, d.name, d.supported, d.ir, d.rf, d.power
+			resp.known = true
+			resp.name = d.name
+			resp.supported = d.supported
+			resp.ir = d.ir
+			resp.rf = d.rf
+			resp.power = d.power
+			break
 		}
 	}
-	return false, "", false, false, false, false
+	return resp
 }
