@@ -138,22 +138,21 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(path, "/remote/") {
 		components, authorized := processURI("/remote/", path)
 		if !authorized {
-			unauthorized(w, r)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 		handleRemote(w, r, components)
 		return
 	}
 
-	w.Header().Set("Content-type", "text/plain")
 	if strings.HasPrefix(path, "/learn/") {
 		components, authorized := processURI("/learn/", path)
 		if !authorized {
-			unauthorized(w, r)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 		if len(components) != 1 {
-			notfound(w, r, "Invalid command")
+			http.Error(w, "Invalid command", http.StatusNotFound)
 			return
 		}
 		handleLearn(w, r, components[0])
@@ -162,11 +161,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(path, "/execute/") {
 		components, authorized := processURI("/execute/", path)
 		if !authorized {
-			unauthorized(w, r)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 		if len(components) != 2 {
-			notfound(w, r, "Invalid command")
+			http.Error(w, "Invalid command", http.StatusNotFound)
 			return
 		}
 		handleExecute(w, r, components[0], components[1])
@@ -175,18 +174,18 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(path, "/query/") {
 		components, authorized := processURI("/query/", path)
 		if !authorized {
-			unauthorized(w, r)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 		if len(components) != 1 {
-			notfound(w, r, "Invalid command")
+			http.Error(w, "Invalid command", http.StatusNotFound)
 			return
 		}
 		handleQuery(w, r, components[0])
 		return
 	}
 
-	notfound(w, r, fmt.Sprintf("%v is not a valid command", path))
+	http.Error(w, fmt.Sprintf("%v is not a valid command", path), http.StatusNotFound)
 }
 
 // Strips the prefix off the URI, checks the first argument to ensure it
@@ -202,6 +201,7 @@ func processURI(prefix, uri string) ([]string, bool) {
 }
 
 func handleLearn(w http.ResponseWriter, r *http.Request, host string) {
+	w.Header().Set("Content-type", "text/plain")
 	log.Printf("Learn %v", host)
 	data, err := broadlink.Learn(host)
 	if err != nil {
@@ -214,6 +214,7 @@ func handleLearn(w http.ResponseWriter, r *http.Request, host string) {
 }
 
 func handleExecute(w http.ResponseWriter, r *http.Request, room, command string) {
+	w.Header().Set("Content-type", "text/plain")
 	log.Printf("Execute %v in %v", command, room)
 	host, data, err := rooms.RemoteCode(room, command)
 	if err != nil {
@@ -234,6 +235,7 @@ func handleExecute(w http.ResponseWriter, r *http.Request, room, command string)
 }
 
 func handleQuery(w http.ResponseWriter, r *http.Request, host string) {
+	w.Header().Set("Content-type", "text/plain")
 	log.Printf("Query %v", host)
 	state, err := broadlink.GetPowerState(host)
 	if err != nil {
@@ -247,7 +249,7 @@ func handleQuery(w http.ResponseWriter, r *http.Request, host string) {
 
 func handleRemote(w http.ResponseWriter, r *http.Request, components []string) {
 	if len(components) < 1 {
-		notfound(w, r, "Not found")
+		http.Error(w, "Not found", http.StatusNotFound)
 		return
 	}
 	path := components[0]
@@ -261,17 +263,5 @@ func handleRemote(w http.ResponseWriter, r *http.Request, components []string) {
 		w.Write(rmweb.Icon())
 		return
 	}
-	notfound(w, r, "Not found")
-}
-
-func unauthorized(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusUnauthorized)
-	fmt.Fprintln(w, "Unauthorized")
-	log.Print("Unauthorized")
-}
-
-func notfound(w http.ResponseWriter, r *http.Request, message string) {
-	w.WriteHeader(http.StatusUnauthorized)
-	fmt.Fprintln(w, message)
-	log.Print(message)
+	http.Error(w, "Not found", http.StatusNotFound)
 }
