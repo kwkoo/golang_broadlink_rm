@@ -1,4 +1,4 @@
-package rmproxy
+package rmweb
 
 import (
 	"encoding/json"

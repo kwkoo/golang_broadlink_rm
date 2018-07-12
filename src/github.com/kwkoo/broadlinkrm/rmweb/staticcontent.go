@@ -1,4 +1,4 @@
-package rmproxy
+package rmweb
 
 // IndexHTML returns the static HTML for the index page.
 func IndexHTML() string {

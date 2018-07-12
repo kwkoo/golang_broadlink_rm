@@ -10,13 +10,13 @@ import (
 	"strings"
 
 	"github.com/kwkoo/broadlinkrm"
-	"github.com/kwkoo/broadlinkrm/rmproxy"
+	"github.com/kwkoo/broadlinkrm/rmweb"
 )
 
 var (
 	broadlink broadlinkrm.Broadlink
 	key       string
-	rooms     rmproxy.Rooms
+	rooms     rmweb.Rooms
 )
 
 func main() {
@@ -69,7 +69,7 @@ func initializeRooms(roomsPath, commandsPath string) {
 	if err != nil {
 		log.Fatalf("Could not open commands JSON file %v: %v", commandsPath, err)
 	}
-	commands, err := rmproxy.IngestCommands(commandFile)
+	commands, err := rmweb.IngestCommands(commandFile)
 	commandFile.Close()
 	if err != nil {
 		log.Fatalf("Error while processing commands JSON: %v", err)
@@ -81,7 +81,7 @@ func initializeRooms(roomsPath, commandsPath string) {
 	if err != nil {
 		log.Fatalf("Could not open rooms JSON file %v: %v", roomsFile, err)
 	}
-	rooms, err = rmproxy.NewRooms(roomsFile, commands)
+	rooms, err = rmweb.NewRooms(roomsFile, commands)
 	roomsFile.Close()
 	if err != nil {
 		log.Fatalf("Error while processing rooms JSON: %v", err)
@@ -98,7 +98,7 @@ func initalizeBroadlink(deviceConfigPath string, skipDiscovery bool) {
 		if err != nil {
 			log.Fatalf("Could not open device configurations JSON file %v: %v", deviceConfigPath, err)
 		}
-		dc, err := rmproxy.IngestDeviceConfig(deviceConfigFile)
+		dc, err := rmweb.IngestDeviceConfig(deviceConfigFile)
 		deviceConfigFile.Close()
 		if err != nil {
 			log.Fatalf("Error while processing device configurations JSON: %v", err)
@@ -228,12 +228,12 @@ func handleRemote(w http.ResponseWriter, r *http.Request, components []string) {
 	path := components[0]
 	if path == "" || path == "index.html" {
 		w.Header().Set("Content-type", "text/html")
-		fmt.Fprint(w, rmproxy.IndexHTML())
+		fmt.Fprint(w, rmweb.IndexHTML())
 		return
 	}
 	if path == "icon.png" {
 		w.Header().Set("Content-type", "image/png")
-		w.Write(rmproxy.Icon())
+		w.Write(rmweb.Icon())
 		return
 	}
 	notfound(w, r, "Not found")
