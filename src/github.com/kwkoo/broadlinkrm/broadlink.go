@@ -59,23 +59,9 @@ func (b *Broadlink) Discover() error {
 
 // Learn sends a learn command to the specified device. If id is an empty string it selects the first device.
 func (b *Broadlink) Learn(id string) (string, error) {
-	if len(b.devices) == 0 {
-		return "", fmt.Errorf("no devices")
-	}
-
-	var d *device
-	if len(id) == 0 {
-		d = b.devices[0]
-	} else {
-		d = b.getDevice(id)
-		if d == nil {
-			return "", fmt.Errorf("%v is not a known device", id)
-		}
-	}
-
-	devChar := isKnownDevice(d.deviceType)
-	if !devChar.ir {
-		return "", fmt.Errorf("device %v is of device type %v (0x%04x) and is not capable of IR", d.mac.String(), d.deviceType, d.deviceType)
+	d, err := b.deviceIsCapableOfIR(id)
+	if err != nil {
+		return "", err
 	}
 
 	resp, err := d.learn()
@@ -84,29 +70,39 @@ func (b *Broadlink) Learn(id string) (string, error) {
 		return "", fmt.Errorf("error while calling learn: %v", err)
 	}
 
+	log.Print("Learn successful")
 	return hex.EncodeToString(resp.Data), nil
 }
 
-// Send sends data to the specified device. If id is an empty string it selects the first device.
-func (b *Broadlink) Send(id, s string) error {
-	if len(b.devices) == 0 {
-		return fmt.Errorf("no devices")
+// Execute looks at the device type and decides if it should call send() or
+// setPowerState().
+func (b *Broadlink) Execute(id, s string) error {
+	d, err := b.deviceExistsAndIsKnown(id)
+	if err != nil {
+		return err
 	}
-	var d *device
-	if len(id) == 0 {
-		d = b.devices[0]
-	} else {
-		d = b.getDevice(id)
-		if d == nil {
-			return fmt.Errorf("%v is not a known device", id)
-		}
-	}
-
+	log.Printf("device type 0x%04x", d.deviceType)
 	devChar := isKnownDevice(d.deviceType)
-	if !devChar.ir && !devChar.rf {
-		return fmt.Errorf("device %v is of device type %v (0x%04x) and is not capable of sending data", d.mac.String(), d.deviceType, d.deviceType)
+	if devChar.power {
+		l := len(s)
+		if l != 1 && l != 2 {
+			return fmt.Errorf("device %v is a power outlet and can only accept the data of 0, 00, 1, or 01 - got %v instead", d.mac.String(), s)
+		}
+		return d.setPowerState(s)
 	}
-	return d.sendString(s)
+	if devChar.ir || devChar.rf {
+		return d.sendString(s)
+	}
+	return fmt.Errorf("device %v device type %v (0x%04x) is not capable of power control, IR, and RF", d.mac.String(), d.deviceType, d.deviceType)
+}
+
+// GetPowerState queries a WiFi-enabled power outlet and returns its state (on or off).
+func (b *Broadlink) GetPowerState(id string) (bool, error) {
+	d, err := b.deviceIsCapableOfPowerControl(id)
+	if err != nil {
+		return false, err
+	}
+	return d.getPowerState()
 }
 
 // AddManualDevice adds a device manually - bypassing the authentication phase.
@@ -317,4 +313,46 @@ func calculateChecksum(p []byte) [2]byte {
 	checksum = checksum & 0xffff
 
 	return [2]byte{(byte)(checksum & 0xff), (byte)(checksum >> 8)}
+}
+
+func (b Broadlink) deviceExistsAndIsKnown(id string) (*device, error) {
+	if len(b.devices) == 0 {
+		return nil, fmt.Errorf("no devices")
+	}
+	var d *device
+	if len(id) == 0 {
+		d = b.devices[0]
+	} else {
+		d = b.getDevice(id)
+		if d == nil {
+			return nil, fmt.Errorf("%v is not a known device", id)
+		}
+	}
+	return d, nil
+}
+
+func (b Broadlink) deviceIsCapableOfIR(id string) (*device, error) {
+	d, err := b.deviceExistsAndIsKnown(id)
+	if err != nil {
+		return nil, err
+	}
+
+	devChar := isKnownDevice(d.deviceType)
+	if devChar.ir && !devChar.rf {
+		return d, fmt.Errorf("device %v is of device type %v (0x%04x) and is not capable of sending and receiving data", d.mac.String(), d.deviceType, d.deviceType)
+	}
+	return d, nil
+}
+
+func (b Broadlink) deviceIsCapableOfPowerControl(id string) (*device, error) {
+	d, err := b.deviceExistsAndIsKnown(id)
+	if err != nil {
+		return nil, err
+	}
+
+	devChar := isKnownDevice(d.deviceType)
+	if !devChar.power {
+		return d, fmt.Errorf("device %v is of device type %v (0x%04x) and is not capable of power control", d.mac.String(), d.deviceType, d.deviceType)
+	}
+	return d, nil
 }

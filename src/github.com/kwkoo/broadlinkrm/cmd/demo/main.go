@@ -32,7 +32,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	broadlink.Send("", code)
+	broadlink.Execute("", code)
 	fmt.Fprintln(w, "OK")
 }
 

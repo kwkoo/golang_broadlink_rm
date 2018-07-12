@@ -172,6 +172,19 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		handleExecute(w, r, components[0], components[1])
 		return
 	}
+	if strings.HasPrefix(path, "/query/") {
+		components, authorized := processURI("/query/", path)
+		if !authorized {
+			unauthorized(w, r)
+			return
+		}
+		if len(components) != 1 {
+			notfound(w, r, "Invalid command")
+			return
+		}
+		handleQuery(w, r, components[0])
+		return
+	}
 
 	notfound(w, r, fmt.Sprintf("%v is not a valid command", path))
 }
@@ -192,7 +205,7 @@ func handleLearn(w http.ResponseWriter, r *http.Request, host string) {
 	log.Printf("Learn %v", host)
 	data, err := broadlink.Learn(host)
 	if err != nil {
-		fmt.Fprintf(w, "Error: %v", err)
+		fmt.Fprintf(w, "Error: %v\n", err)
 		log.Printf("Error: %v", err)
 		return
 	}
@@ -204,19 +217,31 @@ func handleExecute(w http.ResponseWriter, r *http.Request, room, command string)
 	log.Printf("Execute %v in %v", command, room)
 	host, data, err := rooms.RemoteCode(room, command)
 	if err != nil {
-		fmt.Fprintf(w, "Error: %v", err)
+		fmt.Fprintf(w, "Error: %v\n", err)
 		log.Printf("Error: %v", err)
 		return
 	}
 
-	err = broadlink.Send(host, data)
+	err = broadlink.Execute(host, data)
 	if err != nil {
-		fmt.Fprintf(w, "Error: %v", err)
+		fmt.Fprintf(w, "Error: %v\n", err)
 		log.Printf("Error: %v", err)
 		return
 	}
 
 	fmt.Fprintln(w, "OK")
+	return
+}
+
+func handleQuery(w http.ResponseWriter, r *http.Request, host string) {
+	log.Printf("Query %v", host)
+	state, err := broadlink.GetPowerState(host)
+	if err != nil {
+		fmt.Fprintf(w, "Error: %v\n", err)
+		log.Printf("Error: %v", err)
+		return
+	}
+	fmt.Fprintln(w, state)
 	return
 }
 

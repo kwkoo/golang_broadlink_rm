@@ -13,9 +13,17 @@
             "remotePath": "",
             "port": 2345,
             "host": "127.0.0.1",
-            "program": "${fileDirname}",
+            "program": "${workspaceRoot}/src/github.com/kwkoo/broadlinkrm/cmd/rmproxy",
             "env": {},
             "args": [
+                "-key",
+                "123",
+                "-commands",
+                "${workspaceRoot}/../localremote/json/commands.json",
+                "-rooms",
+                "${workspaceRoot}/../localremote/json/rooms.json",
+                "-deviceconfig",
+                "${workspaceRoot}/../localremote/json/devices.json"
                 //"-test.v",
                 //"-test.run",
                 //"TestIngestCategories"
