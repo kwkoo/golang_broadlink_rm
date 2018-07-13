@@ -91,6 +91,9 @@ func IndexHTML() string {
 					width: 16vw;
 					height: 16vw;
 				}
+				button {
+					touch-action: manipulation;
+				}
 				button:active, #tv_off:active, #tv_on:active, #nav:active {
 					background-color: #f89900;
 				}
