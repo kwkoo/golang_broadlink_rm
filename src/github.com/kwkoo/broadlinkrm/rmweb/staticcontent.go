@@ -10,14 +10,25 @@ func IndexHTML() string {
 			<link rel="apple-touch-startup-image" href="icon.png">
 			<title>Remote Control</title>
 			<script type="text/javascript">
+				var key;
 				var xhttp = new XMLHttpRequest();
-
+	
 				function initPage() {
+					key = getKey();
 					showContainer(0);
 					var buttons = document.getElementsByTagName("button");
 					for (var i=0; i<buttons.length; i++) {
 						buttons[i].addEventListener("click", buttonClicked);
 					}
+				}
+	
+				function getKey() {
+					var location = document.location.href;
+					var rightSlash = location.lastIndexOf('/');
+					if (rightSlash == -1) return "";
+					var leftSlash = location.lastIndexOf('/', rightSlash-1);
+					if (leftSlash == -1) return "";
+					return location.substring(leftSlash+1, rightSlash);
 				}
 	
 				function buttonClicked(evt) {
@@ -28,7 +39,7 @@ func IndexHTML() string {
 						buttonid = el.id;
 					}
 					var parentid = "";
-                    if (buttonid == "nav") {
+					if (buttonid == "nav") {
 						var currentScreen = el.innerText;
 						if (currentScreen == "TV") {
 							showContainer(1);
@@ -43,7 +54,7 @@ func IndexHTML() string {
 					xhttp.open("GET", getURI(parentid, buttonid), true);
 					xhttp.send();
 				}
-
+	
 				function showContainer(index) {
 					var containers = ["livingroomtv", "livingroomac"];
 					var navlabels = ["TV", "AC"];
@@ -62,9 +73,9 @@ func IndexHTML() string {
 	
 				function getURI(parentid, buttonid) {
 					if (buttonid.startsWith("macro_")) {
-						return "/macro/123/" + buttonid;
+						return "/macro/" + key + "/" + buttonid;
 					} else {
-						return "/execute/123/livingroom/" + buttonid;
+						return "/execute/" + key + "/livingroom/" + buttonid;
 					}
 				}
 			</script>
@@ -78,15 +89,15 @@ func IndexHTML() string {
 				button:active, #nav:active {
 					background-color: #f89900;
 				}
-                #nav {
-                    font-size: 3em;
-                    background-color: #03a9f4;
-                    color: white;
-                    width: 100%;
+				#nav {
+					font-size: 3em;
+					background-color: #03a9f4;
+					color: white;
+					width: 100%;
 					height: 10vh;
-                    outline: none;
+					outline: none;
 					border: none;
-                }
+				}
 				.round {
 					border-radius: 100%;
 					fill: white;
@@ -135,7 +146,7 @@ func IndexHTML() string {
 				#g_tv_voldown {
 					grid-column: 3 /span 1;
 				}
-
+	
 				#livingroomac {
 					display: grid;
 					width: 100%;
@@ -154,7 +165,7 @@ func IndexHTML() string {
 			</style>
 		</head>
 		<body onload="initPage()">
-            <button id="nav">TV</button>
+			<button id="nav">TV</button>
 			<div id="livingroomtv">
 				<div class="g_spacer"></div>
 				<div id="g_tv_off"><button class="round red" id="macro_tv_off">
