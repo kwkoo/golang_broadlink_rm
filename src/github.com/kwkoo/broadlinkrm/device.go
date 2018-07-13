@@ -362,7 +362,6 @@ func (d *device) sendData(data []byte) error {
 	if resp.Type != CommandOK {
 		return fmt.Errorf("expected response type %v but got %v instead", CommandOK, resp.Type)
 	}
-	log.Print("Send successful")
 	return nil
 }
 

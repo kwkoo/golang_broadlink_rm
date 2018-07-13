@@ -81,7 +81,6 @@ func (b *Broadlink) Execute(id, s string) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("device type 0x%04x", d.deviceType)
 	devChar := isKnownDevice(d.deviceType)
 	if devChar.power {
 		l := len(s)
