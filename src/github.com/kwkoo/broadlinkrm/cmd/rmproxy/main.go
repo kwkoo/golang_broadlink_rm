@@ -10,11 +10,14 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kwkoo/broadlinkrm"
 	"github.com/kwkoo/broadlinkrm/rmweb"
 )
+
+const sendChannelSize = 20
 
 func main() {
 	skipDiscovery := false
@@ -51,15 +54,31 @@ func main() {
 	rooms := initializeRooms(roomsPath, commandsPath)
 	broadlink := initalizeBroadlink(deviceConfigPath, skipDiscovery)
 
+	// Setup signal handling.
 	shutdown := make(chan os.Signal)
 	signal.Notify(shutdown, os.Interrupt)
-	server := setupWebServer(port, broadlink, key, rooms)
+
+	var wg sync.WaitGroup
+
+	commandChannel := make(chan rmweb.RemoteCommand, sendChannelSize)
+	wg.Add(1)
+	server := setupWebServer(port, broadlink, key, rooms, commandChannel, &wg)
+
+	wg.Add(1)
+	go rmweb.SendWorker(commandChannel, broadlink, &wg)
 
 	<-shutdown
-	log.Print("Interrupt signal received, shutting down...")
+	log.Print("Interrupt signal received, initiating shutdown process...")
+	signal.Reset(os.Interrupt)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	server.Shutdown(ctx)
+
+	commandChannel <- rmweb.RemoteCommand{CommandType: rmweb.Shutdown}
+	wg.Wait()
+	close(commandChannel)
+
 	log.Print("Shutdown successful")
 }
 
@@ -136,8 +155,8 @@ func initalizeBroadlink(deviceConfigPath string, skipDiscovery bool) broadlinkrm
 	return broadlink
 }
 
-func setupWebServer(port int, broadlink broadlinkrm.Broadlink, key string, rooms rmweb.Rooms) *http.Server {
-	proxy := rmweb.NewRMProxyWebServer(broadlink, key, rooms)
+func setupWebServer(port int, broadlink broadlinkrm.Broadlink, key string, rooms rmweb.Rooms, ch chan rmweb.RemoteCommand, wg *sync.WaitGroup) *http.Server {
+	proxy := rmweb.NewRMProxyWebServer(broadlink, key, rooms, ch)
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: proxy,
@@ -146,6 +165,7 @@ func setupWebServer(port int, broadlink broadlinkrm.Broadlink, key string, rooms
 	go func() {
 		log.Print("Web server listening on port ", port)
 		if err := server.ListenAndServe(); err != nil {
+			wg.Done()
 			if err == http.ErrServerClosed {
 				log.Print("Web server graceful shutdown")
 				return

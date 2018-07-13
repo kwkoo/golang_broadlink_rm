@@ -11,17 +11,19 @@ import (
 
 // RMProxyWebServer is a consolidation of all web server logic.
 type RMProxyWebServer struct {
-	broadlink broadlinkrm.Broadlink
-	key       string
-	rooms     Rooms
+	broadlink   broadlinkrm.Broadlink
+	key         string
+	rooms       Rooms
+	sendChannel chan RemoteCommand
 }
 
 // NewRMProxyWebServer instantiates a new RMProxyWebServer struct.
-func NewRMProxyWebServer(broadlink broadlinkrm.Broadlink, key string, rooms Rooms) RMProxyWebServer {
+func NewRMProxyWebServer(broadlink broadlinkrm.Broadlink, key string, rooms Rooms, ch chan RemoteCommand) RMProxyWebServer {
 	return RMProxyWebServer{
-		broadlink: broadlink,
-		key:       key,
-		rooms:     rooms,
+		broadlink:   broadlink,
+		key:         key,
+		rooms:       rooms,
+		sendChannel: ch,
 	}
 }
 
@@ -104,11 +106,10 @@ func (proxy *RMProxyWebServer) handleExecute(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	err = proxy.broadlink.Execute(host, data)
-	if err != nil {
-		fmt.Fprintf(w, "Error: %v\n", err)
-		log.Printf("Error: %v", err)
-		return
+	proxy.sendChannel <- RemoteCommand{
+		CommandType: SendCommand,
+		Target:      host,
+		Data:        data,
 	}
 
 	fmt.Fprintln(w, "OK")
