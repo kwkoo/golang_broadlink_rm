@@ -46,12 +46,17 @@ func main() {
 	if len(deviceConfigPath) == 0 {
 		flag.StringVar(&deviceConfigPath, "deviceconfig", "", "Path to the JSON file specifying device configurations.")
 	}
+	macrosPath := os.Getenv("MACROS")
+	if len(macrosPath) == 0 {
+		flag.StringVar(&macrosPath, "macros", "", "Path to the JSON file specifying macros.")
+	}
 	flag.Parse()
 	mandatoryParameter("key", key)
 	mandatoryParameter("rooms", roomsPath)
 	mandatoryParameter("commands", commandsPath)
 
 	rooms := initializeRooms(roomsPath, commandsPath)
+	macros := initializeMacros(macrosPath, rooms)
 	broadlink := initalizeBroadlink(deviceConfigPath, skipDiscovery)
 
 	// Setup signal handling.
@@ -60,9 +65,9 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	commandChannel := make(chan rmweb.RemoteCommand, sendChannelSize)
+	commandChannel := make(chan rmweb.RemoteCommandMessage, sendChannelSize)
 	wg.Add(1)
-	server := setupWebServer(port, broadlink, key, rooms, commandChannel, &wg)
+	server := setupWebServer(port, broadlink, key, rooms, macros, commandChannel, &wg)
 
 	wg.Add(1)
 	go rmweb.SendWorker(commandChannel, broadlink, &wg)
@@ -75,7 +80,7 @@ func main() {
 	defer cancel()
 	server.Shutdown(ctx)
 
-	commandChannel <- rmweb.RemoteCommand{CommandType: rmweb.Shutdown}
+	commandChannel <- rmweb.ShutdownMessage()
 	wg.Wait()
 	close(commandChannel)
 
@@ -117,6 +122,27 @@ func initializeRooms(roomsPath, commandsPath string) rmweb.Rooms {
 	return rooms
 }
 
+func initializeMacros(macrosPath string, rooms rmweb.Rooms) map[string]rmweb.RemoteCommandMessage {
+	empty := make(map[string]rmweb.RemoteCommandMessage)
+	if len(macrosPath) == 0 {
+		log.Print("No macros")
+		return empty
+	}
+
+	macrosFile, err := os.Open(macrosPath)
+	if err != nil {
+		log.Fatalf("Could not open macros JSON file %v: %v", macrosPath, err)
+	}
+	macros, err := rmweb.IngestMacros(macrosFile, rooms)
+	macrosFile.Close()
+	if err != nil {
+		log.Fatalf("Error while processing macros JSON: %v", err)
+	}
+
+	log.Printf("Processed %d macros", len(macros))
+	return macros
+}
+
 func initalizeBroadlink(deviceConfigPath string, skipDiscovery bool) broadlinkrm.Broadlink {
 	broadlink := broadlinkrm.NewBroadlink()
 
@@ -155,8 +181,8 @@ func initalizeBroadlink(deviceConfigPath string, skipDiscovery bool) broadlinkrm
 	return broadlink
 }
 
-func setupWebServer(port int, broadlink broadlinkrm.Broadlink, key string, rooms rmweb.Rooms, ch chan rmweb.RemoteCommand, wg *sync.WaitGroup) *http.Server {
-	proxy := rmweb.NewRMProxyWebServer(broadlink, key, rooms, ch)
+func setupWebServer(port int, broadlink broadlinkrm.Broadlink, key string, rooms rmweb.Rooms, macros map[string]rmweb.RemoteCommandMessage, ch chan rmweb.RemoteCommandMessage, wg *sync.WaitGroup) *http.Server {
+	proxy := rmweb.NewRMProxyWebServer(broadlink, key, rooms, macros, ch)
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: proxy,

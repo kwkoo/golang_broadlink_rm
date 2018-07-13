@@ -1,0 +1,4 @@
+[
+    {"name":"macro_tv_start","instructions":["sendcommand livingroom 21c_max", "pause 5000", "sendcommand livingroom tv_on"]},
+    {"name":"macro_tv_stop","instructions":["sendcommand livingroom ac_off", "sendcommand livingroom tv_off"]}
+]

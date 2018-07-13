@@ -14,14 +14,16 @@ type RMProxyWebServer struct {
 	broadlink   broadlinkrm.Broadlink
 	key         string
 	rooms       Rooms
-	sendChannel chan RemoteCommand
+	macros      map[string]RemoteCommandMessage
+	sendChannel chan RemoteCommandMessage
 }
 
 // NewRMProxyWebServer instantiates a new RMProxyWebServer struct.
-func NewRMProxyWebServer(broadlink broadlinkrm.Broadlink, key string, rooms Rooms, ch chan RemoteCommand) RMProxyWebServer {
+func NewRMProxyWebServer(broadlink broadlinkrm.Broadlink, key string, rooms Rooms, macros map[string]RemoteCommandMessage, ch chan RemoteCommandMessage) RMProxyWebServer {
 	return RMProxyWebServer{
 		broadlink:   broadlink,
 		key:         key,
+		macros:      macros,
 		rooms:       rooms,
 		sendChannel: ch,
 	}
@@ -66,6 +68,19 @@ func (proxy RMProxyWebServer) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		proxy.handleExecute(w, r, components[0], components[1])
 		return
 	}
+	if strings.HasPrefix(path, "/macro/") {
+		components, authorized := proxy.processURI("/macro/", path)
+		if !authorized {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if len(components) != 1 {
+			http.Error(w, "Invalid command", http.StatusNotFound)
+			return
+		}
+		proxy.handleMacro(w, r, components[0])
+		return
+	}
 	if strings.HasPrefix(path, "/query/") {
 		components, authorized := proxy.processURI("/query/", path)
 		if !authorized {
@@ -106,12 +121,24 @@ func (proxy *RMProxyWebServer) handleExecute(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	proxy.sendChannel <- RemoteCommand{
-		CommandType: SendCommand,
-		Target:      host,
-		Data:        data,
+	proxy.sendChannel <- MessageFromSingleCommand(SendCommand, host, data)
+	fmt.Fprintln(w, "OK")
+	return
+}
+
+func (proxy *RMProxyWebServer) handleMacro(w http.ResponseWriter, r *http.Request, macroname string) {
+	w.Header().Set("Content-type", "text/plain")
+	log.Printf("Execute macro %v", macroname)
+
+	msg, ok := proxy.macros[macroname]
+	if !ok {
+		errmsg := fmt.Sprintf("Error: %v is not a valid macro", macroname)
+		fmt.Fprintln(w, errmsg)
+		log.Print(errmsg)
+		return
 	}
 
+	proxy.sendChannel <- msg
 	fmt.Fprintln(w, "OK")
 	return
 }

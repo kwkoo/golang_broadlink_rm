@@ -34,6 +34,9 @@ func NewRooms(r io.Reader, commands []Command) (Rooms, error) {
 	}
 
 	for _, rm := range s {
+		if strings.Contains(rm.Name, " ") {
+			return rms, fmt.Errorf("room name \"%v\" should not contain a space", rm.Name)
+		}
 		rms.addRoom(rm)
 	}
 

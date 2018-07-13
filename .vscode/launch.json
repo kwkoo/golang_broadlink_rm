@@ -23,7 +23,9 @@
                 "-rooms",
                 "${workspaceRoot}/../localremote/json/rooms.json",
                 "-deviceconfig",
-                "${workspaceRoot}/../localremote/json/devices.json"
+                "${workspaceRoot}/../localremote/json/devices.json",
+                "-macros",
+                "${workspaceRoot}/../localremote/json/macros.json"
                 //"-test.v",
                 //"-test.run",
                 //"TestIngestCategories"
