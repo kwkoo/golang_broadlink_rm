@@ -13,12 +13,6 @@ import (
 	"github.com/kwkoo/broadlinkrm/rmweb"
 )
 
-var (
-	broadlink broadlinkrm.Broadlink
-	key       string
-	rooms     rmweb.Rooms
-)
-
 func main() {
 	skipDiscovery := false
 	if len(os.Getenv("SKIPDISCOVERY")) > 0 {
@@ -26,7 +20,7 @@ func main() {
 	} else {
 		flag.BoolVar(&skipDiscovery, "skipdiscovery", false, "Skip the device discovery process")
 	}
-	key = os.Getenv("KEY")
+	key := os.Getenv("KEY")
 	if len(key) == 0 {
 		flag.StringVar(&key, "key", "", "A key that's used to authenticate incoming requests. This is a required part of all incoming URLs.")
 	}
@@ -51,9 +45,9 @@ func main() {
 	mandatoryParameter("rooms", roomsPath)
 	mandatoryParameter("commands", commandsPath)
 
-	initializeRooms(roomsPath, commandsPath)
-	initalizeBroadlink(deviceConfigPath, skipDiscovery)
-	setupWebServer(port)
+	rooms := initializeRooms(roomsPath, commandsPath)
+	broadlink := initalizeBroadlink(deviceConfigPath, skipDiscovery)
+	setupWebServer(port, broadlink, key, rooms)
 }
 
 func mandatoryParameter(key, value string) {
@@ -64,7 +58,7 @@ func mandatoryParameter(key, value string) {
 	}
 }
 
-func initializeRooms(roomsPath, commandsPath string) {
+func initializeRooms(roomsPath, commandsPath string) rmweb.Rooms {
 	commandFile, err := os.Open(commandsPath)
 	if err != nil {
 		log.Fatalf("Could not open commands JSON file %v: %v", commandsPath, err)
@@ -81,17 +75,18 @@ func initializeRooms(roomsPath, commandsPath string) {
 	if err != nil {
 		log.Fatalf("Could not open rooms JSON file %v: %v", roomsFile, err)
 	}
-	rooms, err = rmweb.NewRooms(roomsFile, commands)
+	rooms, err := rmweb.NewRooms(roomsFile, commands)
 	roomsFile.Close()
 	if err != nil {
 		log.Fatalf("Error while processing rooms JSON: %v", err)
 	}
 
 	log.Printf("Processed %d rooms", rooms.Count())
+	return rooms
 }
 
-func initalizeBroadlink(deviceConfigPath string, skipDiscovery bool) {
-	broadlink = broadlinkrm.NewBroadlink()
+func initalizeBroadlink(deviceConfigPath string, skipDiscovery bool) broadlinkrm.Broadlink {
+	broadlink := broadlinkrm.NewBroadlink()
 
 	if len(deviceConfigPath) > 0 {
 		deviceConfigFile, err := os.Open(deviceConfigPath)
@@ -110,6 +105,7 @@ func initalizeBroadlink(deviceConfigPath string, skipDiscovery bool) {
 			}
 		}
 		log.Printf("Added %v devices manually", broadlink.Count())
+		return broadlink
 	}
 
 	if !skipDiscovery {
@@ -124,144 +120,22 @@ func initalizeBroadlink(deviceConfigPath string, skipDiscovery bool) {
 		log.Fatal("Did not discover any devices")
 	}
 	log.Printf("Discovered %d devices", count)
+	return broadlink
 }
 
-func setupWebServer(port int) {
+func setupWebServer(port int, broadlink broadlinkrm.Broadlink, key string, rooms rmweb.Rooms) *http.Server {
+	proxy := rmweb.NewRMProxyWebServer(broadlink, key, rooms)
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: proxy,
+	}
+
+	//go func() {
 	log.Print("Web server listening on port ", port)
-	http.HandleFunc("/", handler)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
-}
+	if err := server.ListenAndServe(); err != nil {
+		log.Fatal(err)
+	}
+	//}()
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-	log.Printf("Received request: %v", path)
-	if strings.HasPrefix(path, "/remote/") {
-		components, authorized := processURI("/remote/", path)
-		if !authorized {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		handleRemote(w, r, components)
-		return
-	}
-
-	if strings.HasPrefix(path, "/learn/") {
-		components, authorized := processURI("/learn/", path)
-		if !authorized {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		if len(components) != 1 {
-			http.Error(w, "Invalid command", http.StatusNotFound)
-			return
-		}
-		handleLearn(w, r, components[0])
-		return
-	}
-	if strings.HasPrefix(path, "/execute/") {
-		components, authorized := processURI("/execute/", path)
-		if !authorized {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		if len(components) != 2 {
-			http.Error(w, "Invalid command", http.StatusNotFound)
-			return
-		}
-		handleExecute(w, r, components[0], components[1])
-		return
-	}
-	if strings.HasPrefix(path, "/query/") {
-		components, authorized := processURI("/query/", path)
-		if !authorized {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		if len(components) != 1 {
-			http.Error(w, "Invalid command", http.StatusNotFound)
-			return
-		}
-		handleQuery(w, r, components[0])
-		return
-	}
-
-	http.Error(w, fmt.Sprintf("%v is not a valid command", path), http.StatusNotFound)
-}
-
-// Strips the prefix off the URI, checks the first argument to ensure it
-// matches the key, then returns the rest of the arguments in a slice of
-// strings. It returns true if the key is valid.
-func processURI(prefix, uri string) ([]string, bool) {
-	uri = uri[len(prefix):]
-	components := strings.Split(uri, "/")
-	if (len(components) == 0) || (components[0] != key) {
-		return components, false
-	}
-	return components[1:], true
-}
-
-func handleLearn(w http.ResponseWriter, r *http.Request, host string) {
-	w.Header().Set("Content-type", "text/plain")
-	log.Printf("Learn %v", host)
-	data, err := broadlink.Learn(host)
-	if err != nil {
-		fmt.Fprintf(w, "Error: %v\n", err)
-		log.Printf("Error: %v", err)
-		return
-	}
-	fmt.Fprintln(w, data)
-	return
-}
-
-func handleExecute(w http.ResponseWriter, r *http.Request, room, command string) {
-	w.Header().Set("Content-type", "text/plain")
-	log.Printf("Execute %v in %v", command, room)
-	host, data, err := rooms.RemoteCode(room, command)
-	if err != nil {
-		fmt.Fprintf(w, "Error: %v\n", err)
-		log.Printf("Error: %v", err)
-		return
-	}
-
-	err = broadlink.Execute(host, data)
-	if err != nil {
-		fmt.Fprintf(w, "Error: %v\n", err)
-		log.Printf("Error: %v", err)
-		return
-	}
-
-	fmt.Fprintln(w, "OK")
-	return
-}
-
-func handleQuery(w http.ResponseWriter, r *http.Request, host string) {
-	w.Header().Set("Content-type", "text/plain")
-	log.Printf("Query %v", host)
-	state, err := broadlink.GetPowerState(host)
-	if err != nil {
-		fmt.Fprintf(w, "Error: %v\n", err)
-		log.Printf("Error: %v", err)
-		return
-	}
-	fmt.Fprintln(w, state)
-	return
-}
-
-func handleRemote(w http.ResponseWriter, r *http.Request, components []string) {
-	if len(components) < 1 {
-		http.Error(w, "Not found", http.StatusNotFound)
-		return
-	}
-	path := components[0]
-	if path == "" || path == "index.html" {
-		w.Header().Set("Content-type", "text/html")
-		fmt.Fprint(w, rmweb.IndexHTML())
-		return
-	}
-	if path == "icon.png" {
-		w.Header().Set("Content-type", "image/png")
-		w.Write(rmweb.Icon())
-		return
-	}
-	http.Error(w, "Not found", http.StatusNotFound)
+	return server
 }

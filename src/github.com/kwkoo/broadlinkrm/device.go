@@ -244,7 +244,7 @@ func (d *device) sendPacket(req unencryptedRequest) error {
 	}
 	_, err = (*d.conn).WriteTo(packet, destAddr)
 	if err != nil {
-		return fmt.Errorf("could not send send packet: %v", err)
+		return fmt.Errorf("could not send packet: %v", err)
 	}
 	return nil
 }
@@ -279,7 +279,7 @@ func (d *device) readPacket() (Response, error) {
 	if command == 0xe9 {
 		copy(d.key, payload[0x04:0x14])
 		copy(d.id, payload[:0x04])
-		log.Printf("Device ready - updating to a new key %v and new id %v", hex.EncodeToString(d.key), hex.EncodeToString(d.id))
+		log.Printf("Device %v ready - updating to a new key %v and new id %v", d.mac.String(), hex.EncodeToString(d.key), hex.EncodeToString(d.id))
 		processedPayload.Type = AuthOK
 		return processedPayload, nil
 	}

@@ -34,7 +34,7 @@ run:
 		-key 123 \
 		-rooms $(GOPATH)/../localremote/json/rooms.json \
 		-commands $(GOPATH)/../localremote/json/commands.json \
-		-deviceconfig $(GOPATH)/../localremote/json/devices.json \
+#		-deviceconfig $(GOPATH)/../localremote/json/devices.json \
 #		-skipdiscovery
 
 image: 
