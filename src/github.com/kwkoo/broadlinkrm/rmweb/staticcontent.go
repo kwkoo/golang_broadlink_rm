@@ -72,6 +72,12 @@ func IndexHTML() string {
 				body {
 					background-color: #455a64;
 				}
+				button {
+					touch-action: manipulation;
+				}
+				button:active, #nav:active {
+					background-color: #f89900;
+				}
                 #nav {
                     font-size: 3em;
                     background-color: #03a9f4;
@@ -95,12 +101,6 @@ func IndexHTML() string {
 					width: 16vw;
 					height: 16vw;
 				}
-				button {
-					touch-action: manipulation;
-				}
-				button:active, #macro_tv_off:active, #macro_tv_on:active, #nav:active {
-					background-color: #f89900;
-				}
 				#livingroomtv {
 					display: grid;
 					width: 100%;
@@ -110,8 +110,11 @@ func IndexHTML() string {
 					grid-template-columns: repeat(3, 30vw);
 					grid-template-rows: repeat(8, auto);
 				}
-				#macro_tv_off, #ac_off {
+				.red, #ac_off {
 					background-color: #f44336;
+				}
+				.green, #ac_20, #ac_21, #ac_22 {
+					background-color: #4caf50;
 				}
 				.g_spacer {
 					grid-column: 1 / span 3;
@@ -119,9 +122,6 @@ func IndexHTML() string {
 				}
 				#g_tv_on {
 					grid-column: 3 / span 1;
-				}
-				#macro_tv_on, #ac_20, #ac_21, #ac_22 {
-					background-color: #4caf50;
 				}
 				#g_tv_up {
 					grid-column: 2 / span 1;
@@ -157,13 +157,13 @@ func IndexHTML() string {
             <button id="nav">TV</button>
 			<div id="livingroomtv">
 				<div class="g_spacer"></div>
-				<div id="g_tv_off"><button class="round" id="macro_tv_off">
+				<div id="g_tv_off"><button class="round red" id="macro_tv_off">
 					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 					<path fill="none" d="M0 0h24v24H0z"/>
 					<path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/>
 					</svg>
 				</button></div>
-				<div id="g_tv_on"><button class="round" id="macro_tv_on">
+				<div id="g_tv_on"><button class="round green" id="macro_tv_on">
 					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 					<path fill="none" d="M0 0h24v24H0z"/>
 					<path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/>
@@ -228,18 +228,18 @@ func IndexHTML() string {
 			<div id="livingroomac">
 				<div class="g_spacer"></div>
 				<div class="g_spacer"></div>
-				<div><button class="round textbutton" id="ac_20">
+				<div><button class="round textbutton green" id="ac_20">
 					20
 				</button></div>
-				<div><button class="round textbutton" id="ac_21">
+				<div><button class="round textbutton green" id="ac_21">
 					21
 				</button></div>
-				<div><button class="round textbutton" id="ac_22">
+				<div><button class="round textbutton green" id="ac_22">
 					22
 				</button></div>
 				<div class="g_spacer"></div>
 				<div class="g_spacer"></div>
-				<div id="g_ac_off"><button class="round" id="ac_off">
+				<div id="g_ac_off"><button class="round red" id="ac_off">
 						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 						<path fill="none" d="M0 0h24v24H0z"/>
 						<path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/>
