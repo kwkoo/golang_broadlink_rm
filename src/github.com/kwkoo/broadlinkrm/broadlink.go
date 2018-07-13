@@ -198,6 +198,7 @@ func (b *Broadlink) addDevice(remote net.Addr, mac net.HardwareAddr, deviceType 
 	dev, err := newDevice(remoteAddr, mac, b.timeout, deviceType)
 	if err != nil {
 		log.Printf("Error creating new device: %v", err)
+		return
 	}
 	b.devices = append(b.devices, dev)
 	b.lookup[strings.ToLower(remoteAddr)] = dev

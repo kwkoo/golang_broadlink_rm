@@ -68,10 +68,10 @@ func newDevice(remoteAddr string, mac net.HardwareAddr, timeout, deviceType int)
 	resp, err := d.serverRequest(authenticatePayload())
 	d.close()
 	if err != nil {
-		return d, fmt.Errorf("error making server request: %v", err)
+		return d, fmt.Errorf("error making authentication request: %v", err)
 	}
 	if resp.Type == DeviceError {
-		return d, errors.New("device responded with an error code")
+		return d, errors.New("device responded with an error code during authentication")
 	}
 	if resp.Type != AuthOK {
 		return d, fmt.Errorf("did not get an affirmative response to the authenticaton request - expected %v but got %v instead", AuthOK, resp.Type)

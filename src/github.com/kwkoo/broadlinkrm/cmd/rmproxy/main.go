@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/kwkoo/broadlinkrm"
 	"github.com/kwkoo/broadlinkrm/rmweb"
@@ -47,7 +50,17 @@ func main() {
 
 	rooms := initializeRooms(roomsPath, commandsPath)
 	broadlink := initalizeBroadlink(deviceConfigPath, skipDiscovery)
-	setupWebServer(port, broadlink, key, rooms)
+
+	shutdown := make(chan os.Signal)
+	signal.Notify(shutdown, os.Interrupt)
+	server := setupWebServer(port, broadlink, key, rooms)
+
+	<-shutdown
+	log.Print("Interrupt signal received, shutting down...")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	server.Shutdown(ctx)
+	log.Print("Shutdown successful")
 }
 
 func mandatoryParameter(key, value string) {
@@ -130,12 +143,16 @@ func setupWebServer(port int, broadlink broadlinkrm.Broadlink, key string, rooms
 		Handler: proxy,
 	}
 
-	//go func() {
-	log.Print("Web server listening on port ", port)
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatal(err)
-	}
-	//}()
+	go func() {
+		log.Print("Web server listening on port ", port)
+		if err := server.ListenAndServe(); err != nil {
+			if err == http.ErrServerClosed {
+				log.Print("Web server graceful shutdown")
+				return
+			}
+			log.Fatal(err)
+		}
+	}()
 
 	return server
 }
