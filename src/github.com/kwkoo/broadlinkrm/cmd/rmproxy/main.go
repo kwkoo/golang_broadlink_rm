@@ -96,12 +96,12 @@ func mandatoryParameter(key, value string) {
 }
 
 func initializeRooms(roomsPath, commandsPath string) rmweb.Rooms {
-	commandFile, err := os.Open(commandsPath)
+	commandsFile, err := os.Open(commandsPath)
 	if err != nil {
 		log.Fatalf("Could not open commands JSON file %v: %v", commandsPath, err)
 	}
-	commands, err := rmweb.IngestCommands(commandFile)
-	commandFile.Close()
+	commands, err := rmweb.IngestCommands(commandsFile)
+	commandsFile.Close()
 	if err != nil {
 		log.Fatalf("Error while processing commands JSON: %v", err)
 	}

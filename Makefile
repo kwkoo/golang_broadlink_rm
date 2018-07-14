@@ -28,7 +28,7 @@ coverage:
 		-html=$(GOPATH)/$(COVERAGEOUTPUT) -o $(GOPATH)/$(COVERAGEHTML)
 	open $(GOPATH)/$(COVERAGEHTML)
 
-run:
+runrmproxy:
 	@GOPATH=$(GOPATH) go run \
 		$(GOPATH)/src/$(PACKAGE)/cmd/$(SHORT_PACKAGE)/main.go \
 		-key 123 \
@@ -37,6 +37,12 @@ run:
 		-macros $(GOPATH)/../localremote/json/macros.json \
 #		-deviceconfig $(GOPATH)/../localremote/json/devices.json \
 #		-skipdiscovery
+
+runmacrobuilder:
+	@GOPATH=$(GOPATH) go run \
+			$(GOPATH)/src/$(PACKAGE)/cmd/macrobuilder/main.go \
+			-rooms $(GOPATH)/../localremote/json/rooms.json \
+			-commands $(GOPATH)/../localremote/json/commands.json
 
 image: 
 	docker build --rm -t $(IMAGENAME):$(VERSION) $(GOPATH)
