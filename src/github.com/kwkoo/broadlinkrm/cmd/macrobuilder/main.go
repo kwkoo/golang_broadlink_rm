@@ -132,9 +132,6 @@ func handlerIndex(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, `<!DOCTYPE html>
 	<html>
 		<head>
-			<link rel="icon" href="icon.png">
-			<link rel="apple-touch-icon" href="icon.png">
-			<link rel="apple-touch-startup-image" href="icon.png">
 			<title>Macro Builder</title>
 			<script type="text/javascript">
 				var deployment;
