@@ -86,9 +86,6 @@ func IndexHTML() string {
 				button {
 					touch-action: manipulation;
 				}
-				button:active, #nav:active {
-					background-color: #f89900;
-				}
 				#nav {
 					font-size: 3em;
 					background-color: #03a9f4;
@@ -126,6 +123,9 @@ func IndexHTML() string {
 				}
 				.green, #ac_20, #ac_21, #ac_22 {
 					background-color: #4caf50;
+				}
+				button:active, #nav:active, #ac_20:active, #ac_21:active, #ac_22:active, #ac_off:active {
+					background-color: #f89900;
 				}
 				.g_spacer {
 					grid-column: 1 / span 3;
@@ -165,97 +165,132 @@ func IndexHTML() string {
 			</style>
 		</head>
 		<body onload="initPage()">
+			<svg style="display: none;" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+				<defs>
+					<g id="iconpower">
+						<path fill="none" d="M0 0h24v24H0z"/>
+						<path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/>
+					</g>
+				</defs>
+			</svg>
 			<button id="nav">TV</button>
 			<div id="livingroomtv">
 				<div class="g_spacer"></div>
-				<div id="g_tv_off"><button class="round red" id="macro_tv_off">
-					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-					<path fill="none" d="M0 0h24v24H0z"/>
-					<path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/>
-					</svg>
-				</button></div>
-				<div id="g_tv_on"><button class="round green" id="macro_tv_on">
-					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-					<path fill="none" d="M0 0h24v24H0z"/>
-					<path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/>
-					</svg>
-				</button></div>
-				<div id="g_tv_up"><button class="round" id="tv_up">
-					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-					<path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
-					<path d="M0 0h24v24H0z" fill="none"/>
-					</svg>
-				</button></div>
-				<div id="g_tv_left"><button class="round" id="tv_left">
-					<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"  width="24px" height="24px" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve">
-					<path d="M15.41,16.59L10.83,12l4.58-4.59L14,6l-6,6l6,6L15.41,16.59z"/>
-					<path fill="none" d="M0,0h24v24H0V0z"/>
-					</svg>
-				</button></div>
-				<div id="g_tv_ok"><button class="round" id="tv_ok">
-					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-					<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/>
-					<path d="M0 0h24v24H0z" fill="none"/>
-					</svg>
-				</button></div>
-				<div id="g_tv_right"><button class="round" id="tv_right">
-					<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="24px" height="24px" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve">
-					<path d="M8.59,16.59L13.17,12L8.59,7.41L10,6l6,6l-6,6L8.59,16.59z"/>
-					<path fill="none" d="M0,0h24v24H0V0z"/>
-					</svg>
-				</button></div>
-				<div id="g_tv_menu"><button class="round" id="tv_option">
-					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-					<path d="M0 0h24v24H0z" fill="none"/>
-					<path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
-					</svg>
-				</button></div>
-				<div id="g_tv_down"><button class="round" id="tv_down">
-					<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="24px" height="24px" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve">
-					<path d="M7.41,8.59L12,13.17l4.59-4.58L18,10l-6,6l-6-6L7.41,8.59z"/>
-					<path fill="none" d="M0,0h24v24H0V0z"/>
-					</svg>
-				</button></div>
-				<div id="g_tv_back"><button class="round" id="tv_return">
-					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-					<path d="M0 0h24v24H0z" fill="none"/>
-					<path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
-					</svg>
-				</button></div>
+				<div id="g_tv_off">
+					<button class="round red" id="macro_tv_off">
+						<svg width="24" height="24" viewBox="0 0 24 24">
+							<use xlink:href="#iconpower" />
+						</svg>
+					</button>
+				</div>
+				<div id="g_tv_on">
+					<button class="round green" id="macro_tv_on">
+						<svg width="24" height="24" viewBox="0 0 24 24">
+							<use xlink:href="#iconpower" />
+						</svg>
+					</button>
+				</div>
+				<div id="g_tv_up">
+					<button class="round" id="tv_up">
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+							<path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
+							<path d="M0 0h24v24H0z" fill="none"/>
+						</svg>
+					</button>
+				</div>
+				<div id="g_tv_left">
+					<button class="round" id="tv_left">
+						<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"  width="24px" height="24px" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve">
+							<path d="M15.41,16.59L10.83,12l4.58-4.59L14,6l-6,6l6,6L15.41,16.59z"/>
+							<path fill="none" d="M0,0h24v24H0V0z"/>
+						</svg>
+					</button>
+				</div>
+				<div id="g_tv_ok">
+					<button class="round" id="tv_ok">
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+							<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/>
+							<path d="M0 0h24v24H0z" fill="none"/>
+						</svg>
+					</button>
+				</div>
+				<div id="g_tv_right">
+					<button class="round" id="tv_right">
+						<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="24px" height="24px" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve">
+							<path d="M8.59,16.59L13.17,12L8.59,7.41L10,6l6,6l-6,6L8.59,16.59z"/>
+							<path fill="none" d="M0,0h24v24H0V0z"/>
+						</svg>
+					</button>
+				</div>
+				<div id="g_tv_menu">
+					<button class="round" id="tv_option">
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+							<path d="M0 0h24v24H0z" fill="none"/>
+							<path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+						</svg>
+					</button>
+				</div>
+				<div id="g_tv_down">
+					<button class="round" id="tv_down">
+						<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="24px" height="24px" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve">
+							<path d="M7.41,8.59L12,13.17l4.59-4.58L18,10l-6,6l-6-6L7.41,8.59z"/>
+							<path fill="none" d="M0,0h24v24H0V0z"/>
+						</svg>
+					</button>
+				</div>
+				<div id="g_tv_back">
+					<button class="round" id="tv_return">
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+							<path d="M0 0h24v24H0z" fill="none"/>
+							<path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+						</svg>
+					</button>
+				</div>
 				<div class="g_spacer"></div>
-				<div id="g_tv_volup"><button class="round" id="sb_volup">
-					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-					<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-					<path d="M0 0h24v24H0z" fill="none"/>
-					</svg>
-				</button></div>
-				<div id="g_tv_voldown"><button class="round" id="sb_voldown">
-					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-					<path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/>
-					<path d="M0 0h24v24H0z" fill="none"/>
-					</svg>
-				</button></div>
+				<div id="g_tv_volup">
+					<button class="round" id="sb_volup">
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+							<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+							<path d="M0 0h24v24H0z" fill="none"/>
+						</svg>
+					</button>
+				</div>
+				<div id="g_tv_voldown">
+					<button class="round" id="sb_voldown">
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+							<path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/>
+							<path d="M0 0h24v24H0z" fill="none"/>
+						</svg>
+					</button>
+				</div>
 			</div>
 			<div id="livingroomac">
 				<div class="g_spacer"></div>
 				<div class="g_spacer"></div>
-				<div><button class="round textbutton green" id="ac_20">
-					20
-				</button></div>
-				<div><button class="round textbutton green" id="ac_21">
-					21
-				</button></div>
-				<div><button class="round textbutton green" id="ac_22">
-					22
-				</button></div>
+				<div>
+					<button class="round textbutton green" id="ac_20">
+						20
+					</button>
+				</div>
+				<div>
+					<button class="round textbutton green" id="ac_21">
+						21
+					</button>
+				</div>
+				<div>
+					<button class="round textbutton green" id="ac_22">
+						22
+					</button>
+				</div>
 				<div class="g_spacer"></div>
 				<div class="g_spacer"></div>
-				<div id="g_ac_off"><button class="round red" id="ac_off">
-						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-						<path fill="none" d="M0 0h24v24H0z"/>
-						<path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/>
+				<div id="g_ac_off">
+					<button class="round red" id="ac_off">
+						<svg width="24" height="24" viewBox="0 0 24 24">
+							<use xlink:href="#iconpower" />
 						</svg>
-				</button></div>
+					</button>
+				</div>
 			</div>
 		</body>
 	</html>`
