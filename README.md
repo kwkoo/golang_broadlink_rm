@@ -2,13 +2,20 @@
 
 ## Overview
 
-This is an app (`rmproxy`) and a library which lets you interact with the Broadlink RM Pro+ infrared blaster.
+This repository consists of several components:
 
-It is based on [broadlink-rm-http](https://github.com/TheAslera/broadlink-rm-http) and the [broadlinkjs-rm](https://github.com/lprhodes/broadlinkjs-rm) library.
+1. `broadlinkrm` (`src/github.com/kwkoo/broadlinkrm`) - A Go library designed to communicate with the Broadlink RM Pro+ infrared blaster and the Broadlink SP2 wifi-enabled power outlet. It is based on [broadlinkjs-rm](https://github.com/lprhodes/broadlinkjs-rm).
 
-## Docker Support
+2. `demo` (`src/github.com/kwkoo/broadlinkrm/cmd/demo`) - A simple web app which demonstrates how to use `broadlinkrm`. Access <http://localhost:8080/learn> to put the RM Pro into learning mode. After it learns the remote code, access <http://localhost:8080/> to emit the learned code.
 
-The app can run from within a docker container. To do that, execute `make image` to build the docker image, followed by `make runcontainer` to run the container.
+3. `rmproxy` (`src/github.com/kwkoo/broadlinkrm/cmd/rmproxy`) - A web app based on [broadlink-rm-http](https://github.com/TheAslera/broadlink-rm-http). It lets you put the RM Pro into learning mode by accessing <http://localhost:8080/learn/KEY/IP_ADDRESS>. You can also make `rmproxy` emit a remote code by accessing <http://localhost:8080/execute/KEY/ROOM/COMMAND>. Lastly, you `rmproxy` has a web-based remote control that is accessed at <http://localhost:8080/remote/KEY/>. The remote module will require customization to suit your deployment. `rmproxy` also supports macros, which let you emit a sequence of remote commands with a single URL. You can send a macro by accessing <http://localhost:8080/macro/KEY/MACRO_NAME>.
+
+4. `macrobuilder` (`src/github.com/kwkoo/broadlinkrm/cmd/macrobuilder`) - A web app that takes in the same configuration files as `rmproxy` and lets you build a macro and generates JSON that you can copy and paste into a file that `rmproxy` can parse.
+
+
+## `rmproxy` Docker Support
+
+`rmproxy` can run from within a docker container. To do that, execute `make image` to build the docker image, followed by `make runcontainer` to run the container.
 
 Before you run the container, you will probably want to customize the JSON files located in the `json` directory.
 
@@ -18,7 +25,8 @@ If you're running docker on linux, discovery of Broadlink devices will only work
 
 You can still run `rmproxy` without discovery working if you enter the device configuration (IP address, key, id, and an optional MAC address) in a JSON file. Refer to the section below for more details on how to do this. You will need to run on a setup with discovery working (either by running the container using the host network mode or by running `rmproxy` outside of a container) in order to get the key and ID.
 
-## Device Config File
+
+## `rmproxy` Device Config File
 
 `rmproxy` will send a UDP broadcast packet when it starts up to discover all the Broadlink devices on the network.
 
@@ -28,9 +36,27 @@ If you wish to skip this discovery process, you can specify the device's attribu
 
 A sample device config JSON file can be found at `json/devices_sample.json`.
 
-## Web Remote Control
+
+## `rmproxy` Web Remote Control
 
 A simple web remote interface is available at `http://localhost:8080/remote/KEY/`.
+
+Please note that this probably won't work for you out of the box.
+
+## Macros
+
+`rmproxy` supports macros. Macros let you send a sequence of remote codes with a single URL.
+
+An example of the format expected can be found at `json/macros_sample.json`.
+
+There are 2 types of macro instructions.
+
+1. `sendcommand` - Tells `rmproxy` to emit a remote code. It's in the following format: `sendcommand ROOM COMMAND`
+
+2. `pause` - Tells `rmproxy` to pause before sending the next command. It's in the following format: `pause INTERVAL` where `INTERVAL` is an integer specifying the number of milliseconds to pause.
+
+If you wish to create a large number of macros, it may make sense to use `macrobuilder` to generate the JSON for those macros. `macrobuilder` uses the same rooms JSON file and commands JSON file as `rmproxy`.
+
 
 ## Credits
 
