@@ -13,6 +13,7 @@ import (
 )
 
 const learnTimeout = 20 // seconds
+const sendRetries = 3
 
 // ResponseType denotes the type of payload.
 type ResponseType int
@@ -134,16 +135,32 @@ func (d *device) serverRequest(req unencryptedRequest) (Response, error) {
 		return resp, fmt.Errorf("could not setup UDP listener: %v", err)
 	}
 
-	err = d.sendPacket(req)
+	encryptedReq, err := d.encryptRequest(req)
 	if err != nil {
-		return resp, fmt.Errorf("could not send packet: %v", err)
+		return resp, err
 	}
 
-	resp, err = d.readPacket()
-	if err != nil {
-		return resp, fmt.Errorf("error while waiting for device response: %v", err)
+	retries := 0
+	for {
+		retries++
+
+		err = d.send(encryptedReq)
+		if err != nil {
+			if retries < sendRetries {
+				continue
+			}
+			return resp, fmt.Errorf("could not send packet: %v", err)
+		}
+
+		resp, err = d.readPacket()
+		if err != nil {
+			if retries < sendRetries {
+				continue
+			}
+			return resp, fmt.Errorf("error while waiting for device response: %v", err)
+		}
+		return resp, nil
 	}
-	return resp, nil
 }
 
 func (d *device) close() {
@@ -171,15 +188,6 @@ func (d *device) setupConnection() error {
 
 	d.conn = &conn
 	return nil
-}
-
-func (d *device) sendPacket(req unencryptedRequest) error {
-	packet, err := d.encryptRequest(req)
-	if err != nil {
-		return err
-	}
-
-	return d.send(packet)
 }
 
 func (d *device) encryptRequest(req unencryptedRequest) ([]byte, error) {
@@ -245,15 +253,14 @@ func (d *device) encryptRequest(req unencryptedRequest) ([]byte, error) {
 }
 
 func (d device) send(packet []byte) error {
+	if d.conn == nil {
+		return errors.New("could not send packet because a connection does not exist")
+	}
 	destAddr, err := net.ResolveUDPAddr("udp", d.remoteAddr+":80")
 	if err != nil {
 		return fmt.Errorf("could not resolve device address %v: %v", d.remoteAddr, err)
 	}
 
-	err = d.setupConnection()
-	if err != nil {
-		return err
-	}
 	_, err = (*d.conn).WriteTo(packet, destAddr)
 	if err != nil {
 		return fmt.Errorf("could not send packet: %v", err)
@@ -367,6 +374,33 @@ func (d *device) sendData(data []byte) error {
 	return nil
 }
 
+func (d *device) checkData() (Response, error) {
+	resp, err := d.serverRequest(checkDataPayload())
+	if err != nil {
+		return resp, fmt.Errorf("error making CheckData request: %v", err)
+	}
+
+	return resp, nil
+}
+
+func (d *device) checkRFData() (Response, error) {
+	resp, err := d.serverRequest(checkRFDataPayload())
+	if err != nil {
+		return resp, fmt.Errorf("error making CheckRFData request: %v", err)
+	}
+
+	return resp, nil
+}
+
+func (d *device) checkRFData2() (Response, error) {
+	resp, err := d.serverRequest(checkRFData2Payload())
+	if err != nil {
+		return resp, fmt.Errorf("error making CheckRFData2 request: %v", err)
+	}
+
+	return resp, nil
+}
+
 func (d *device) learn() (Response, error) {
 	deadline := time.Now().Add(learnTimeout * time.Second)
 	defer d.close()
@@ -375,25 +409,13 @@ func (d *device) learn() (Response, error) {
 		return Response{}, fmt.Errorf("error making learning request: %v", err)
 	}
 
-	// Cache the encrypted request since we're going to be making multiple
-	// checkData calls.
-	checkDataReq, err := d.encryptRequest(checkDataPayload())
-	if err != nil {
-		return Response{}, fmt.Errorf("could not encrypt checkData request: %v", err)
-	}
-
 	for {
 		if time.Now().After(deadline) {
 			d.cancelLearn()
 			return Response{}, errors.New("learning timeout")
 		}
 
-		if err = d.send(checkDataReq); err != nil {
-			// Could be just a temporary glitch.
-			continue
-		}
-
-		resp, err := d.readPacket()
+		resp, err := d.checkData()
 		if err != nil || resp.Type == DeviceError {
 			// If err != nil, it's probably because it's just timed out waiting
 			// for a response from check data.
@@ -420,21 +442,6 @@ func (d *device) learnRF() (Response, error) {
 	}
 	log.Print("Successfully sent RF frequency sweep command, waiting for long press...")
 
-	// Cache the encrypted request since we're going to be making multiple
-	// checkRFData and checkRFData2 calls.
-	checkRFDataReq, err := d.encryptRequest(checkRFDataPayload())
-	if err != nil {
-		return Response{}, fmt.Errorf("could not encrypt checkRFData request: %v", err)
-	}
-	checkRFData2Req, err := d.encryptRequest(checkRFData2Payload())
-	if err != nil {
-		return Response{}, fmt.Errorf("could not encrypt checkRFData2 request: %v", err)
-	}
-	checkDataReq, err := d.encryptRequest(checkDataPayload())
-	if err != nil {
-		return Response{}, fmt.Errorf("could not encrypt checkData request: %v", err)
-	}
-
 	state := 0
 	for {
 		if time.Now().After(deadline) {
@@ -446,11 +453,7 @@ func (d *device) learnRF() (Response, error) {
 		case 0:
 			// Keep sending CheckRFData (check frequency) till we receive a
 			// valid RawRFData response.
-			if err = d.send(checkRFDataReq); err != nil {
-				log.Print(err)
-				continue
-			}
-			resp, err := d.readPacket()
+			resp, err := d.checkRFData()
 			if err != nil || resp.Type == DeviceError {
 				continue
 			}
@@ -460,15 +463,12 @@ func (d *device) learnRF() (Response, error) {
 			}
 		case 1:
 			// Send CheckRFData2 (find RF packet) once then proceed to next stage
-			if err = d.send(checkRFData2Req); err == nil {
+			if _, err = d.checkRFData2(); err == nil {
 				log.Print("Find RF packet request sent successfully, proceeding to check data...")
 				state = 2
 			}
 		case 2:
-			if err = d.send(checkDataReq); err != nil {
-				continue
-			}
-			resp, err := d.readPacket()
+			resp, err := d.checkData()
 			if err != nil || resp.Type == DeviceError {
 				// If err != nil, it's probably because it's just timed out waiting
 				// for a response from check data.
@@ -498,7 +498,9 @@ func (d *device) checkTemperature() (Response, error) {
 }
 
 func (d *device) cancelLearn() {
-	d.sendPacket(cancelLearnPayload())
+	//d.sendPacket(cancelLearnPayload())
+	//d.close()
+	d.serverRequest(cancelLearnPayload())
 	d.close()
 }
 
