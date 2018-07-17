@@ -66,11 +66,26 @@ func (b *Broadlink) Learn(id string) (string, error) {
 
 	resp, err := d.learn()
 	if err != nil {
-		d.cancelLearn()
 		return "", fmt.Errorf("error while calling learn: %v", err)
 	}
 
 	log.Print("Learn successful")
+	return hex.EncodeToString(resp.Data), nil
+}
+
+// LearnRF sends an RF Sweep command to the specified device. If id is an empty string it selects the first device.
+func (b *Broadlink) LearnRF(id string) (string, error) {
+	d, err := b.deviceIsCapableOfRF(id)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := d.learnRF()
+	if err != nil {
+		return "", fmt.Errorf("error while calling learn RF: %v", err)
+	}
+
+	log.Print("Learn RF successful")
 	return hex.EncodeToString(resp.Data), nil
 }
 
@@ -338,8 +353,21 @@ func (b Broadlink) deviceIsCapableOfIR(id string) (*device, error) {
 	}
 
 	devChar := isKnownDevice(d.deviceType)
-	if devChar.ir && !devChar.rf {
-		return d, fmt.Errorf("device %v is of device type %v (0x%04x) and is not capable of sending and receiving data", d.mac.String(), d.deviceType, d.deviceType)
+	if !devChar.ir {
+		return d, fmt.Errorf("device %v is of device type %v (0x%04x) and is not capable of sending and receiving IR", d.mac.String(), d.deviceType, d.deviceType)
+	}
+	return d, nil
+}
+
+func (b Broadlink) deviceIsCapableOfRF(id string) (*device, error) {
+	d, err := b.deviceExistsAndIsKnown(id)
+	if err != nil {
+		return nil, err
+	}
+
+	devChar := isKnownDevice(d.deviceType)
+	if !devChar.rf {
+		return d, fmt.Errorf("device %v is of device type %v (0x%04x) and is not capable of sending and receiving RF", d.mac.String(), d.deviceType, d.deviceType)
 	}
 	return d, nil
 }

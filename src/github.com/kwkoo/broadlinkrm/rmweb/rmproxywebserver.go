@@ -55,6 +55,19 @@ func (proxy RMProxyWebServer) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		proxy.handleLearn(w, r, components[0])
 		return
 	}
+	if strings.HasPrefix(path, "/learnrf/") {
+		components, authorized := proxy.processURI("/learnrf/", path)
+		if !authorized {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if len(components) != 1 {
+			http.Error(w, "Invalid command", http.StatusNotFound)
+			return
+		}
+		proxy.handleLearnRF(w, r, components[0])
+		return
+	}
 	if strings.HasPrefix(path, "/execute/") {
 		components, authorized := proxy.processURI("/execute/", path)
 		if !authorized {
@@ -102,6 +115,19 @@ func (proxy *RMProxyWebServer) handleLearn(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-type", "text/plain")
 	log.Printf("Learn %v", host)
 	data, err := proxy.broadlink.Learn(host)
+	if err != nil {
+		fmt.Fprintf(w, "Error: %v\n", err)
+		log.Printf("Error: %v", err)
+		return
+	}
+	fmt.Fprintln(w, data)
+	return
+}
+
+func (proxy *RMProxyWebServer) handleLearnRF(w http.ResponseWriter, r *http.Request, host string) {
+	w.Header().Set("Content-type", "text/plain")
+	log.Printf("Learn RF %v", host)
+	data, err := proxy.broadlink.LearnRF(host)
 	if err != nil {
 		fmt.Fprintf(w, "Error: %v\n", err)
 		log.Printf("Error: %v", err)

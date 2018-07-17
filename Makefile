@@ -28,6 +28,10 @@ coverage:
 		-html=$(GOPATH)/$(COVERAGEOUTPUT) -o $(GOPATH)/$(COVERAGEHTML)
 	open $(GOPATH)/$(COVERAGEHTML)
 
+rundemo:
+	@GOPATH=$(GOPATH) go run \
+		$(GOPATH)/src/$(PACKAGE)/cmd/demo/main.go
+
 runrmproxy:
 	@GOPATH=$(GOPATH) go run \
 		$(GOPATH)/src/$(PACKAGE)/cmd/$(SHORT_PACKAGE)/main.go \
@@ -35,8 +39,8 @@ runrmproxy:
 		-rooms $(GOPATH)/../localremote/json/rooms.json \
 		-commands $(GOPATH)/../localremote/json/commands.json \
 		-macros $(GOPATH)/../localremote/json/macros.json \
-#		-deviceconfig $(GOPATH)/../localremote/json/devices.json \
-#		-skipdiscovery
+		-deviceconfig $(GOPATH)/../localremote/json/devices.json \
+		-skipdiscovery
 
 runmacrobuilder:
 	@GOPATH=$(GOPATH) go run \
