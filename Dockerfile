@@ -20,6 +20,8 @@ COPY json/ /json
 # we need to copy the certificates over because we're connecting over SSL
 COPY --from=builder /etc/ssl /etc/ssl
 
-EXPOSE 8080
+# copy timezone info
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
+EXPOSE 8080
 ENTRYPOINT ["/rmproxy"]
