@@ -57,6 +57,24 @@ There are 2 types of macro instructions.
 
 If you wish to create a large number of macros, it may make sense to use `macrobuilder` to generate the JSON for those macros. `macrobuilder` uses the same rooms JSON file and commands JSON file as `rmproxy`.
 
+## Quickstart
+
+The easiest way to get started is to run it within Docker.
+
+Before you get started, head into the `json` directory and make copies of each JSON file. The Dockerfile expects to find `commands.json`, `devices.json`, `macros.json`, and `rooms.json` in the json directory. You can change these default file names in `env.list`.
+
+If you already have Docker installed, execute `make image` to create the Docker image, followed by `make runcontainer` to run the Docker container.
+
+At this point, there should be something listening on port 8080. It’ll send out a broadcast packet to see if there are any Broadlink RM devices on the network. If it gets a response, it’ll be logged to the console.
+
+Use a web browser to access <http://localhost:8080/learn/123/IPADDRESS> where `IPADDRESS` ss the IP address of the Broadlink RM Pro. This should put the Broadlink RM Pro into learning mode. Point an infrared remote at the Broadlink RM Pro and press a button on the remote. The remote code should be printed on the web browser.
+
+You can then copy the learned commands to `commands.json`. You’ll need to rebuild the Docker image after you change the JSON files. Then run a container based on the new image.
+
+Once the new container is running, access <http://localhost:8080/execute/123/ROOMNME/COMMANDNAME> to get the Broadlink RM Pro to emit the command.
+
+You can get more info on how to setup the JSON files on [broadlink-rm-http’s page](https://github.com/TheAslera/broadlink-rm-http).
+
 
 ## Credits
 
