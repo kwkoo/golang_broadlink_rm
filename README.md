@@ -71,7 +71,7 @@ Use a web browser to access <http://localhost:8080/learn/123/IPADDRESS> where `I
 
 You can then copy the learned commands to `commands.json`. You’ll need to rebuild the Docker image after you change the JSON files. Then run a container based on the new image.
 
-Once the new container is running, access <http://localhost:8080/execute/123/ROOMNME/COMMANDNAME> to get the Broadlink RM Pro to emit the command.
+Once the new container is running, access <http://localhost:8080/execute/123/ROOMNAME/COMMANDNAME> to get the Broadlink RM Pro to emit the command.
 
 You can get more info on how to setup the JSON files on [broadlink-rm-http’s page](https://github.com/TheAslera/broadlink-rm-http).
 
