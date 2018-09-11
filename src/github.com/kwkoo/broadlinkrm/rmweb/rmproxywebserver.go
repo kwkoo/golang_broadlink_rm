@@ -15,16 +15,18 @@ type RMProxyWebServer struct {
 	key         string
 	rooms       Rooms
 	macros      map[string]RemoteCommandMessage
+	haconfig    *HomeAssistantConfig
 	sendChannel chan RemoteCommandMessage
 }
 
 // NewRMProxyWebServer instantiates a new RMProxyWebServer struct.
-func NewRMProxyWebServer(broadlink broadlinkrm.Broadlink, key string, rooms Rooms, macros map[string]RemoteCommandMessage, ch chan RemoteCommandMessage) RMProxyWebServer {
+func NewRMProxyWebServer(broadlink broadlinkrm.Broadlink, key string, rooms Rooms, macros map[string]RemoteCommandMessage, haconfig *HomeAssistantConfig, ch chan RemoteCommandMessage) RMProxyWebServer {
 	return RMProxyWebServer{
 		broadlink:   broadlink,
 		key:         key,
 		macros:      macros,
 		rooms:       rooms,
+		haconfig:    haconfig,
 		sendChannel: ch,
 	}
 }
@@ -107,6 +109,19 @@ func (proxy RMProxyWebServer) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		proxy.handleQuery(w, r, components[0])
 		return
 	}
+	if strings.HasPrefix(path, "/homeassistant/") {
+		components, authorized := proxy.processURI("/homeassistant/", path)
+		if !authorized {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if len(components) != 1 {
+			http.Error(w, "Invalid command", http.StatusNotFound)
+			return
+		}
+		proxy.handleHomeAssistant(w, r, components[0])
+		return
+	}
 
 	http.Error(w, fmt.Sprintf("%v is not a valid command", path), http.StatusNotFound)
 }
@@ -179,6 +194,29 @@ func (proxy *RMProxyWebServer) handleQuery(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	fmt.Fprintln(w, state)
+	return
+}
+
+func (proxy *RMProxyWebServer) handleHomeAssistant(w http.ResponseWriter, r *http.Request, command string) {
+	w.Header().Set("Content-type", "text/plain")
+	log.Printf("Execute Home Assistant command %v", command)
+
+	if proxy.haconfig == nil {
+		errmsg := "Not configured for Home Assistant"
+		fmt.Fprintln(w, errmsg)
+		log.Print(errmsg)
+		return
+	}
+
+	err := proxy.haconfig.Execute(command)
+	if err != nil {
+		errmsg := fmt.Sprintf("Error making API call to Home Assistant: %v", err)
+		fmt.Fprintln(w, errmsg)
+		log.Print(errmsg)
+		return
+	}
+
+	fmt.Fprintln(w, "OK")
 	return
 }
 

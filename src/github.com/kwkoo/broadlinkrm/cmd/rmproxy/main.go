@@ -50,10 +50,22 @@ func main() {
 	if len(macrosPath) == 0 {
 		flag.StringVar(&macrosPath, "macros", "", "Path to the JSON file specifying macros.")
 	}
+	haPath := os.Getenv("HOMEASSISTANT")
+	if len(haPath) == 0 {
+		flag.StringVar(&haPath, "homeassistant", "", "Path to the JSON file specifying the connection details to the Home Assistant server.")
+	}
 	flag.Parse()
 	mandatoryParameter("key", key)
 	mandatoryParameter("rooms", roomsPath)
 	mandatoryParameter("commands", commandsPath)
+
+	var haconfig *rmweb.HomeAssistantConfig
+	if len(haPath) > 0 {
+		haconfig = initializeHomeAssistantConfig(haPath)
+		log.Print("Successfully imported Home Assistant configuration")
+	} else {
+		log.Print("No Home Assistant config")
+	}
 
 	rooms := initializeRooms(roomsPath, commandsPath)
 	macros := initializeMacros(macrosPath, rooms)
@@ -67,7 +79,7 @@ func main() {
 
 	commandChannel := make(chan rmweb.RemoteCommandMessage, sendChannelSize)
 	wg.Add(1)
-	server := setupWebServer(port, broadlink, key, rooms, macros, commandChannel, &wg)
+	server := setupWebServer(port, broadlink, key, rooms, macros, haconfig, commandChannel, &wg)
 
 	wg.Add(1)
 	go rmweb.SendWorker(commandChannel, broadlink, &wg)
@@ -93,6 +105,19 @@ func mandatoryParameter(key, value string) {
 		flag.Usage()
 		os.Exit(1)
 	}
+}
+
+func initializeHomeAssistantConfig(haPath string) *rmweb.HomeAssistantConfig {
+	haFile, err := os.Open(haPath)
+	if err != nil {
+		log.Fatalf("Could not open Home Assistant JSON config file %v: %v", haPath, err)
+	}
+	config, err := rmweb.IngestHomeAssistantConfig(haFile)
+	haFile.Close()
+	if err != nil {
+		log.Fatalf("Error while processing Home Assistant JSON config file %v: %v", haPath, err)
+	}
+	return config
 }
 
 func initializeRooms(roomsPath, commandsPath string) rmweb.Rooms {
@@ -181,8 +206,8 @@ func initalizeBroadlink(deviceConfigPath string, skipDiscovery bool) broadlinkrm
 	return broadlink
 }
 
-func setupWebServer(port int, broadlink broadlinkrm.Broadlink, key string, rooms rmweb.Rooms, macros map[string]rmweb.RemoteCommandMessage, ch chan rmweb.RemoteCommandMessage, wg *sync.WaitGroup) *http.Server {
-	proxy := rmweb.NewRMProxyWebServer(broadlink, key, rooms, macros, ch)
+func setupWebServer(port int, broadlink broadlinkrm.Broadlink, key string, rooms rmweb.Rooms, macros map[string]rmweb.RemoteCommandMessage, haconfig *rmweb.HomeAssistantConfig, ch chan rmweb.RemoteCommandMessage, wg *sync.WaitGroup) *http.Server {
+	proxy := rmweb.NewRMProxyWebServer(broadlink, key, rooms, macros, haconfig, ch)
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: proxy,

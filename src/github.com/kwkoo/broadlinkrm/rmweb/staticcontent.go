@@ -74,6 +74,8 @@ func IndexHTML() string {
 				function getURI(parentid, buttonid) {
 					if (buttonid.startsWith("macro_")) {
 						return "/macro/" + key + "/" + buttonid;
+					} else if (buttonid.startsWith("ha_")) {
+						return "/homeassistant/" + key + "/" + buttonid;
 					} else {
 						return "/execute/" + key + "/livingroom/" + buttonid;
 					}
@@ -177,14 +179,14 @@ func IndexHTML() string {
 			<div id="livingroomtv">
 				<div class="g_spacer"></div>
 				<div id="g_tv_off">
-					<button class="round red" id="macro_tv_off">
+					<button class="round red" id="ha_tv_off">
 						<svg width="24" height="24" viewBox="0 0 24 24">
 							<use xlink:href="#iconpower" />
 						</svg>
 					</button>
 				</div>
 				<div id="g_tv_on">
-					<button class="round green" id="macro_tv_on">
+					<button class="round green" id="ha_tv_on">
 						<svg width="24" height="24" viewBox="0 0 24 24">
 							<use xlink:href="#iconpower" />
 						</svg>

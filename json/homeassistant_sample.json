@@ -1,0 +1,8 @@
+{
+    "server":"http://HOMEASSISTANT:8123/api/services",
+    "password":"welcome",
+    "commands":{
+        "ha_tv_off":{"method":"POST","endpoint":"input_boolean/turn_off","payload":"{\"entity_id\":\"input_boolean.tv\"}"},
+        "ha_tv_on":{"method":"POST","endpoint":"input_boolean/turn_on","payload":"{\"entity_id\":\"input_boolean.tv\"}"}
+    }
+}
