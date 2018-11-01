@@ -38,6 +38,7 @@ runrmproxy:
 		-key 123 \
 		-rooms $(GOPATH)/../localremote/json/rooms.json \
 		-commands $(GOPATH)/../localremote/json/commands.json \
+		-macros $(GOPATH)/../localremote/json/macros.json \
 		-homeassistant $(GOPATH)/json/homeassistant.json \
 		-deviceconfig $(GOPATH)/../localremote/json/devices.json \
 		-skipdiscovery

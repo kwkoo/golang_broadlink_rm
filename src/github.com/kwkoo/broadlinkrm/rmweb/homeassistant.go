@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -24,10 +26,11 @@ type CommandMapping struct {
 // HomeAssistantConfig contains the information necessary to connect to a Home
 // Assistant server.
 type HomeAssistantConfig struct {
-	client   *http.Client
-	Server   string                    `json:"server"`
-	Password string                    `json:"password"`
-	Commands map[string]CommandMapping `json:"commands"`
+	client              *http.Client
+	Server              string                    `json:"server"`
+	AuthorizationHeader string                    `json:"authorizationheader"`
+	Password            string                    `json:"password"`
+	Commands            map[string]CommandMapping `json:"commands"`
 }
 
 // IngestHomeAssistantConfig reads a JSON stream and returns a pointer to a new
@@ -42,16 +45,24 @@ func IngestHomeAssistantConfig(r io.Reader) (*HomeAssistantConfig, error) {
 		return config, fmt.Errorf("error decoding Home Assistant configuration JSON: %v", err)
 	}
 
+	if len(config.AuthorizationHeader) == 0 {
+		config.AuthorizationHeader = "x-ha-access"
+	}
+
+	// Allow environment variables to override values in JSON file.
+	setFieldFromEnvironment("HASERVER", &config.Server)
+	setFieldFromEnvironment("HAAUTHORIZATIONHEADER", &config.AuthorizationHeader)
+	setFieldFromEnvironment("HAPASSWORD", &config.Password)
+
 	if len(config.Server) == 0 {
 		return config, errors.New("Home Assistant server is not defined")
+	}
+	if len(config.Password) == 0 {
+		return config, errors.New("Home Assistant password is not defined")
 	}
 
 	if !strings.HasSuffix(config.Server, "/") {
 		config.Server = config.Server + "/"
-	}
-
-	if len(config.Password) == 0 {
-		return config, errors.New("Home Assistant password is not defined")
 	}
 
 	config.client = &http.Client{Timeout: clientTimeout * time.Second}
@@ -75,18 +86,38 @@ func (config HomeAssistantConfig) Execute(command string) error {
 		reqBody = bytes.NewBufferString(cmd.Payload)
 	}
 
-	req, err := http.NewRequest(cmd.Method, config.Server+cmd.Endpoint, reqBody)
+	url := config.Server + cmd.Endpoint
+	log.Printf("sending request to %s", url)
+	req, err := http.NewRequest(cmd.Method, url, reqBody)
 	if err != nil {
 		return fmt.Errorf("error while creating request to Home Assistant server: %v", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
+	if len(config.Password) > 0 {
+		req.Header.Set(config.AuthorizationHeader, config.Password)
+	}
+
 	resp, err := config.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("error making request to Home Assistant server: %v", err)
 	}
-	resp.Body.Close()
+
+	defer resp.Body.Close()
+	code := resp.StatusCode
+	if code != http.StatusOK {
+		return fmt.Errorf("received %d status code", code)
+	}
+
+	log.Printf("Response code %d", resp.StatusCode)
 
 	return nil
+}
+
+func setFieldFromEnvironment(varname string, varloc *string) {
+	v := os.Getenv(varname)
+	if len(v) > 0 {
+		*varloc = v
+	}
 }

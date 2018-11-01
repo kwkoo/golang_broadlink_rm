@@ -57,6 +57,10 @@ There are 2 types of macro instructions.
 
 If you wish to create a large number of macros, it may make sense to use `macrobuilder` to generate the JSON for those macros. `macrobuilder` uses the same rooms JSON file and commands JSON file as `rmproxy`.
 
+## Home Assistant
+
+If you wish to export the learned codes to Home Assistant, note that Home Assistant expects the codes to be Base64 encoded. You can use the converter here - <http://tomeko.net/online_tools/hex_to_base64.php?lang=en1>.
+
 ## Quickstart
 
 The easiest way to get started is to run it within Docker.

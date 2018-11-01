@@ -8,11 +8,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/kwkoo/argparser"
 	"github.com/kwkoo/broadlinkrm"
 	"github.com/kwkoo/broadlinkrm/rmweb"
 )
@@ -20,56 +20,36 @@ import (
 const sendChannelSize = 20
 
 func main() {
-	skipDiscovery := false
-	if len(os.Getenv("SKIPDISCOVERY")) > 0 {
-		skipDiscovery = true
-	} else {
-		flag.BoolVar(&skipDiscovery, "skipdiscovery", false, "Skip the device discovery process")
+	config := struct {
+		Skipdiscovery    bool   `usage:"Skip the device discovery process."`
+		Key              string `usage:"A key that's used to authenticate incoming requests. This is a required part of all incoming URLs."`
+		Port             int    `usage:"HTTP listener port." default:"8080"`
+		Roomspath        string `env:"ROOMS" flag:"rooms" usage:"Path to the JSON file specifying a room configuration."`
+		Commandspath     string `env:"COMMANDS" flag:"commands" usage:"Path to the JSON file listing all remote commands."`
+		Deviceconfigpath string `env:"DEVICECONFIG" flag:"deviceconfig" usage:"Path to the JSON file specifying device configurations."`
+		Macrospath       string `env:"MACROS" flag:"macros" usage:"Path to the JSON file specifying macros."`
+		Hapath           string `env:"HOMEASSISTANT" flag:"homeassistant" usage:"Path to the JSON file specifying the connection details to the Home Assistant server."`
+	}{}
+
+	if err := argparser.Parse(&config); err != nil {
+		log.Fatalf("Error parsing configuration: %v", err)
 	}
-	key := os.Getenv("KEY")
-	if len(key) == 0 {
-		flag.StringVar(&key, "key", "", "A key that's used to authenticate incoming requests. This is a required part of all incoming URLs.")
-	}
-	port, _ := strconv.Atoi(os.Getenv("PORT"))
-	if port == 0 {
-		flag.IntVar(&port, "port", 8080, "HTTP listener port.")
-	}
-	roomsPath := os.Getenv("ROOMS")
-	if len(roomsPath) == 0 {
-		flag.StringVar(&roomsPath, "rooms", "", "Path to the JSON file specifying a room configuration.")
-	}
-	commandsPath := os.Getenv("COMMANDS")
-	if len(commandsPath) == 0 {
-		flag.StringVar(&commandsPath, "commands", "", "Path to the JSON file listing all remote commands.")
-	}
-	deviceConfigPath := os.Getenv("DEVICECONFIG")
-	if len(deviceConfigPath) == 0 {
-		flag.StringVar(&deviceConfigPath, "deviceconfig", "", "Path to the JSON file specifying device configurations.")
-	}
-	macrosPath := os.Getenv("MACROS")
-	if len(macrosPath) == 0 {
-		flag.StringVar(&macrosPath, "macros", "", "Path to the JSON file specifying macros.")
-	}
-	haPath := os.Getenv("HOMEASSISTANT")
-	if len(haPath) == 0 {
-		flag.StringVar(&haPath, "homeassistant", "", "Path to the JSON file specifying the connection details to the Home Assistant server.")
-	}
-	flag.Parse()
-	mandatoryParameter("key", key)
-	mandatoryParameter("rooms", roomsPath)
-	mandatoryParameter("commands", commandsPath)
+
+	mandatoryParameter("key", config.Key)
+	mandatoryParameter("rooms", config.Roomspath)
+	mandatoryParameter("commands", config.Commandspath)
 
 	var haconfig *rmweb.HomeAssistantConfig
-	if len(haPath) > 0 {
-		haconfig = initializeHomeAssistantConfig(haPath)
+	if len(config.Hapath) > 0 {
+		haconfig = initializeHomeAssistantConfig(config.Hapath)
 		log.Print("Successfully imported Home Assistant configuration")
 	} else {
 		log.Print("No Home Assistant config")
 	}
 
-	rooms := initializeRooms(roomsPath, commandsPath)
-	macros := initializeMacros(macrosPath, rooms)
-	broadlink := initalizeBroadlink(deviceConfigPath, skipDiscovery)
+	rooms := initializeRooms(config.Roomspath, config.Commandspath)
+	macros := initializeMacros(config.Macrospath, rooms)
+	broadlink := initalizeBroadlink(config.Deviceconfigpath, config.Skipdiscovery)
 
 	// Setup signal handling.
 	shutdown := make(chan os.Signal)
@@ -79,7 +59,7 @@ func main() {
 
 	commandChannel := make(chan rmweb.RemoteCommandMessage, sendChannelSize)
 	wg.Add(1)
-	server := setupWebServer(port, broadlink, key, rooms, macros, haconfig, commandChannel, &wg)
+	server := setupWebServer(config.Port, broadlink, config.Key, rooms, macros, haconfig, commandChannel, &wg)
 
 	wg.Add(1)
 	go rmweb.SendWorker(commandChannel, broadlink, &wg)
@@ -117,6 +97,7 @@ func initializeHomeAssistantConfig(haPath string) *rmweb.HomeAssistantConfig {
 	if err != nil {
 		log.Fatalf("Error while processing Home Assistant JSON config file %v: %v", haPath, err)
 	}
+
 	return config
 }
 
