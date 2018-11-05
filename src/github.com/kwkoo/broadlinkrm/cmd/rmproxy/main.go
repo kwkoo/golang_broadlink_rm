@@ -2,13 +2,11 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"time"
 
@@ -22,22 +20,19 @@ const sendChannelSize = 20
 func main() {
 	config := struct {
 		Skipdiscovery    bool   `usage:"Skip the device discovery process."`
-		Key              string `usage:"A key that's used to authenticate incoming requests. This is a required part of all incoming URLs."`
+		Key              string `mandatory:"true" usage:"A key that's used to authenticate incoming requests. This is a required part of all incoming URLs."`
 		Port             int    `usage:"HTTP listener port." default:"8080"`
-		Roomspath        string `env:"ROOMS" flag:"rooms" usage:"Path to the JSON file specifying a room configuration."`
-		Commandspath     string `env:"COMMANDS" flag:"commands" usage:"Path to the JSON file listing all remote commands."`
+		Roomspath        string `mandatory:"true" env:"ROOMS" flag:"rooms" usage:"Path to the JSON file specifying a room configuration."`
+		Commandspath     string `mandatory:"true" env:"COMMANDS" flag:"commands" usage:"Path to the JSON file listing all remote commands."`
 		Deviceconfigpath string `env:"DEVICECONFIG" flag:"deviceconfig" usage:"Path to the JSON file specifying device configurations."`
 		Macrospath       string `env:"MACROS" flag:"macros" usage:"Path to the JSON file specifying macros."`
 		Hapath           string `env:"HOMEASSISTANT" flag:"homeassistant" usage:"Path to the JSON file specifying the connection details to the Home Assistant server."`
 	}{}
 
 	if err := argparser.Parse(&config); err != nil {
-		log.Fatalf("Error parsing configuration: %v", err)
+		fmt.Fprintf(os.Stderr, "Error parsing configuration: %v\n", err)
+		os.Exit(1)
 	}
-
-	mandatoryParameter("key", config.Key)
-	mandatoryParameter("rooms", config.Roomspath)
-	mandatoryParameter("commands", config.Commandspath)
 
 	var haconfig *rmweb.HomeAssistantConfig
 	if len(config.Hapath) > 0 {
@@ -77,14 +72,6 @@ func main() {
 	close(commandChannel)
 
 	log.Print("Shutdown successful")
-}
-
-func mandatoryParameter(key, value string) {
-	if len(value) == 0 {
-		fmt.Fprintf(os.Stderr, "Mandatory parameter %v missing - set it as a command line option or as an environment variable (%v).\n", key, strings.ToUpper(key))
-		flag.Usage()
-		os.Exit(1)
-	}
 }
 
 func initializeHomeAssistantConfig(haPath string) *rmweb.HomeAssistantConfig {
