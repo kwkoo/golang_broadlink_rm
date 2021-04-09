@@ -36,7 +36,7 @@ type RemoteCommandMessage struct {
 // MessageFromSingleCommand is a convenience function that lets you generate a
 // message with a single RemoteCommand.
 func MessageFromSingleCommand(cmdtype cmdType, target, data string) RemoteCommandMessage {
-	return RemoteCommandMessage{commands: []remoteCommand{remoteCommand{commandType: cmdtype, target: target, data: data}}}
+	return RemoteCommandMessage{commands: []remoteCommand{{commandType: cmdtype, target: target, data: data}}}
 }
 
 // ShutdownMessage is a convenience function that generates a message with a

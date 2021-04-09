@@ -16,8 +16,26 @@ var code string
 func handler(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	w.Header().Set("Content-type", "text/plain")
-	if strings.HasPrefix(path, "/learn") {
-		data, err := broadlink.Learn("")
+	if path == "/learn" || strings.HasPrefix(path, "/learn/") {
+		var device string
+		if len(path) > len("/learn/") {
+			device = path[len("/learn/"):]
+		}
+		data, err := broadlink.Learn(device)
+		if err != nil {
+			fmt.Fprintf(w, "Error: %v", err)
+			return
+		}
+		fmt.Fprintln(w, data)
+		code = data
+		return
+	}
+	if path == "/learnrf" || strings.HasPrefix(path, "/learnrf/") {
+		var device string
+		if len(path) > len("/learnrf/") {
+			device = path[len("/learnrf/"):]
+		}
+		data, err := broadlink.LearnRF(device)
 		if err != nil {
 			fmt.Fprintf(w, "Error: %v", err)
 			return

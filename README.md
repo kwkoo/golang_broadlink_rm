@@ -80,6 +80,40 @@ Once the new container is running, access <http://localhost:8080/execute/123/ROO
 You can get more info on how to setup the JSON files on [broadlink-rm-http’s page](https://github.com/TheAslera/broadlink-rm-http).
 
 
+## RF
+
+`rmproxy` is also capable of RF if your device supports it.
+
+To put it into RF learning mode, point your browser to <http://localhost:8080/learnrf/123/IPADDRESS>.
+
+RF learning occurs in 2 phases. In the first phase, you should press and hold the remote button while the RF frequency sweep is being performed.
+
+Once the logs say `Check frequency successful`, release the button on the remote, and do a short press of the button.
+
+Do note that sometimes, RF learning mode will output an IR code (beginning with `26`). When that happens, keep repeating the learning command until you get an RF code that begins with `b2` (433MHz) or `d7` (315MHz).
+
+
+## Endpoints
+
+* IR learning
+
+    ```
+    curl http://localhost:8080/learn/123/IPADDRESS
+    ```
+
+* RF learning
+
+    ```
+    curl http://localhost:8080/learn/123/IPADDRESS
+    ```
+
+* Send remote code
+
+    ```
+    curl http://localhost:8080/execute/123/livingroom/tv_on
+    ```
+
+
 ## Credits
 
 The remote control icons were downloaded from <https://icons8.com/> and <https://material.io/tools/icons/>.

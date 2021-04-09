@@ -9,10 +9,11 @@ import (
 	"os/signal"
 	"sync"
 	"time"
+	_ "time/tzdata"
 
-	"github.com/kwkoo/argparser"
 	"github.com/kwkoo/broadlinkrm"
 	"github.com/kwkoo/broadlinkrm/rmweb"
+	"github.com/kwkoo/configparser"
 )
 
 const sendChannelSize = 20
@@ -29,7 +30,7 @@ func main() {
 		Hapath           string `env:"HOMEASSISTANT" flag:"homeassistant" usage:"Path to the JSON file specifying the connection details to the Home Assistant server."`
 	}{}
 
-	if err := argparser.Parse(&config); err != nil {
+	if err := configparser.Parse(&config); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing configuration: %v\n", err)
 		os.Exit(1)
 	}
